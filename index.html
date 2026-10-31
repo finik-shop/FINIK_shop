@@ -3,10 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
     <title>Roblox Store — Adopt Me, MM2 & Кейсы</title>
+
+    <!-- Ускорение загрузки -->
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://finik-shop-2f147-default-rtdb.firebaseio.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js">
+
+    <style>
+        html { background: #0f172a; }
+        body { background: #0f172a; color: #f1f5f9; }
+    </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Firebase SDK -->
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -26,11 +40,9 @@
       try {
         const app = initializeApp(firebaseConfig);
         const rtdb = getDatabase(app);
-        
         window.rtdb = rtdb;
         window.fb = { ref, push, onValue, set, remove, get };
         window.firebaseReady = true;
-        
         if (typeof window.onFirebaseLoaded === 'function') {
             window.onFirebaseLoaded();
         }
@@ -51,9 +63,30 @@
         .rarity-epic { border-color: #a855f7; background: rgba(168, 85, 247, 0.1); }
         .rarity-legendary { border-color: #eab308; background: rgba(234, 179, 8, 0.1); }
         .rarity-godly { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+
+        /* ---------- ХЭЛЛОУИН ТЕМА ---------- */
+        #hw-deco { position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; display: none; }
+        body.halloween #hw-deco { display: block; }
+        .hw-item { position: absolute; top: -10%; opacity: .4; animation: hwfall linear infinite; }
+        @keyframes hwfall {
+            0% { transform: translateY(-10vh) rotate(0deg); }
+            100% { transform: translateY(115vh) rotate(360deg); }
+        }
+        body.halloween { background: radial-gradient(ellipse at top, #2b1245 0%, #140a20 50%, #07040b 100%) fixed !important; }
+        body.halloween [class*="bg-slate-900"] { background-color: #150b1f !important; }
+        body.halloween [class*="bg-slate-800"] { background-color: #22132f !important; }
+        body.halloween [class*="border-slate-700"] { border-color: #53276f !important; }
+        body.halloween .bg-indigo-600, body.halloween .bg-indigo-500 { background-color: #ea580c !important; }
+        body.halloween .hover\:bg-indigo-500:hover { background-color: #f97316 !important; }
+        body.halloween .text-indigo-400, body.halloween .text-indigo-300 { color: #fb923c !important; }
+        body.halloween .border-indigo-400 { border-color: #fb923c !important; }
+        body.halloween header { box-shadow: 0 2px 22px rgba(234, 88, 12, .35) !important; }
+        body.halloween h1::before { content: "🎃 "; }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white pb-28 sm:pb-12 overflow-x-hidden">
+
+    <div id="hw-deco"></div>
 
     <!-- Верхний Хедер -->
     <header class="bg-slate-800/95 backdrop-blur border-b border-slate-700 sticky top-0 z-40 shadow-md">
@@ -66,7 +99,7 @@
                     <i class="fa-solid fa-crown me-1"></i>Админ
                 </span>
             </div>
-            
+
             <!-- Навигация ПК -->
             <nav class="hidden md:flex items-center gap-2 text-xs font-semibold">
                 <button type="button" onclick="switchTab('adopt')" id="btn-adopt" class="px-3.5 py-2 rounded-xl transition bg-indigo-600 text-white shadow-lg shadow-indigo-600/35 whitespace-nowrap active:scale-95">Adopt Me</button>
@@ -94,9 +127,9 @@
                     <h2 id="section-title" class="text-xl sm:text-2xl font-bold text-indigo-300">Adopt Me</h2>
                     <span id="items-count" class="text-xs bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 text-slate-400">0 товаров</span>
                 </div>
-                
-                <!-- Блок поиска с выборкой темы -->
-                <div class="flex items-center gap-1.5 w-full sm:w-auto">
+
+                <!-- Фильтры: тема, валюта, поиск -->
+                <div class="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
                     <div class="relative">
                         <select id="shop-type-filter" onchange="filterProducts()" class="appearance-none bg-slate-800 border border-slate-700 text-xs text-indigo-300 font-bold py-1.5 pl-3 pr-7 rounded-xl focus:outline-none focus:border-indigo-500 cursor-pointer">
                             <option value="all">Все темы</option>
@@ -104,13 +137,22 @@
                         <i class="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
                     </div>
 
-                    <div class="relative w-full sm:w-64">
+                    <div class="relative">
+                        <select id="shop-currency-filter" onchange="filterProducts()" class="appearance-none bg-slate-800 border border-slate-700 text-xs text-indigo-300 font-bold py-1.5 pl-3 pr-7 rounded-xl focus:outline-none focus:border-indigo-500 cursor-pointer">
+                            <option value="all">Валюта</option>
+                            <option value="UAH">₴ Гривны</option>
+                            <option value="RUB">₽ Рубли</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
+                    </div>
+
+                    <div class="relative flex-grow sm:flex-grow-0 sm:w-56">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                         <input type="text" id="shop-search" oninput="filterProducts()" placeholder="Поиск товаров..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
                     </div>
                 </div>
             </div>
-            
+
             <div id="items-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4"></div>
 
             <div id="empty-shop-state" class="hidden text-center py-12 bg-slate-800/40 rounded-2xl border border-dashed border-slate-700 my-4">
@@ -214,7 +256,7 @@
                     </h2>
                     <p class="text-xs text-slate-400 mt-0.5">Здесь хранятся ваши купленные, избранные и выигранные из боксов вещи</p>
                 </div>
-                
+
                 <div class="flex items-center gap-2 w-full sm:w-auto">
                     <button type="button" onclick="setInventoryFilter('all')" id="inv-filter-all" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow">
                         Все предметы
@@ -226,7 +268,7 @@
             </div>
 
             <div id="inventory-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
-            
+
             <div id="empty-inventory-state" class="hidden text-center py-12 bg-slate-800/40 rounded-2xl border border-dashed border-slate-700">
                 <i class="fa-solid fa-box-open text-4xl text-slate-600 mb-3"></i>
                 <p id="empty-inv-text" class="text-slate-400 font-medium text-sm">Ваш инвентарь пуст. Ожидайте выдачи товара администратором или откройте кейсы!</p>
@@ -286,7 +328,7 @@
                     <h2 class="text-lg font-bold text-slate-100">Панель Администратора</h2>
                     <p class="text-xs text-slate-400 mt-1">Введите Telegram и пароль для администрирования</p>
                 </div>
-                
+
                 <form id="login-form" onsubmit="handleCheckAdminPass(event)" class="space-y-4">
                     <div>
                         <input type="text" id="admin-tg" placeholder="Ваш Telegram @ (например @TOPTTL)" required class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 focus:outline-none focus:border-amber-400 text-white placeholder-slate-500 text-sm">
@@ -305,13 +347,25 @@
             </div>
 
             <div id="admin-panel" class="hidden max-w-xl mx-auto space-y-6">
-                <!-- Включение / Выключение тега Администратора -->
-                <div class="bg-slate-800 p-5 rounded-2xl border border-amber-500/40 shadow-xl flex justify-between items-center">
+                <!-- Кто вошёл + выход (для всех админов) -->
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 shadow-xl flex justify-between items-center">
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase">Вы вошли как</div>
+                        <div id="admin-whoami" class="font-bold text-amber-400 text-sm">@</div>
+                        <div id="admin-role" class="text-[10px] text-slate-400"></div>
+                    </div>
+                    <button type="button" onclick="handleLogoutAdmin()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg active:scale-95">
+                        Выйти
+                    </button>
+                </div>
+
+                <!-- Тег создателя (только создатель) -->
+                <div class="owner-only bg-slate-800 p-5 rounded-2xl border border-amber-500/40 shadow-xl flex justify-between items-center">
                     <div>
                         <h3 class="font-bold text-amber-400 text-sm flex items-center gap-2">
                             <i class="fa-solid fa-crown"></i> Включить тег администратора
                         </h3>
-                        <p class="text-xs text-slate-400 mt-0.5">Отображает плашку [АДМИНИСТРАТОР] возле вашего ника в чате для всех игроков</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Отображает плашку [СОЗДАТЕЛЬ] возле вашего ника в чате для всех игроков</p>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" id="admin-tag-toggle" onchange="toggleAdminTagInChat(this.checked)" class="sr-only peer">
@@ -319,8 +373,8 @@
                     </label>
                 </div>
 
-                <!-- ЗАКРЫТЬ / ОТКРЫТЬ САЙТ -->
-                <div class="bg-slate-800 p-5 rounded-2xl border border-red-500/40 shadow-xl flex justify-between items-center">
+                <!-- Закрыть / открыть сайт (только создатель) -->
+                <div class="owner-only bg-slate-800 p-5 rounded-2xl border border-red-500/40 shadow-xl flex justify-between items-center">
                     <div>
                         <h3 class="font-bold text-red-400 text-sm flex items-center gap-2"><i class="fa-solid fa-lock"></i> Закрыть сайт</h3>
                         <p class="text-xs text-slate-400 mt-0.5">Когда сайт закрыт, внутрь могут зайти только админы</p>
@@ -331,27 +385,24 @@
                     </label>
                 </div>
 
-                <!-- СПИСОК АДМИНОВ (ТОЛЬКО ВЛАДЕЛЕЦ) -->
-                <div id="owner-admins-block" class="hidden bg-slate-800 p-5 sm:p-8 rounded-2xl border border-amber-500/40 shadow-xl">
+                <!-- Список админов (только создатель) -->
+                <div id="owner-admins-block" class="owner-only bg-slate-800 p-5 sm:p-8 rounded-2xl border border-amber-500/40 shadow-xl">
                     <div class="flex justify-between items-center mb-2">
                         <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
                             <i class="fa-solid fa-user-shield"></i> Админы
                         </h2>
                         <span id="owner-admins-count" class="text-xs bg-slate-900 text-amber-400 font-bold px-2.5 py-1 rounded-lg border border-slate-700">0 админов</span>
                     </div>
-                    <p class="text-xs text-slate-400 mb-3">Видно только владельцу. Здесь можно увидеть, кто в сети, и убрать админа.</p>
+                    <p class="text-xs text-slate-400 mb-3">Видно только создателю. Здесь можно увидеть, кто в сети, и убрать админа.</p>
                     <div id="owner-admins-list" class="space-y-2.5 max-h-80 overflow-y-auto pr-1"></div>
                 </div>
 
-                <!-- ВЫДАЧА ВЕЩЕЙ В ИНВЕНТАРЬ ИГРОКУ -->
-                <div class="bg-slate-800 p-5 sm:p-8 rounded-2xl border border-slate-700 shadow-xl">
-                    <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-700">
+                <!-- Выдача вещей в инвентарь (только создатель) -->
+                <div class="owner-only bg-slate-800 p-5 sm:p-8 rounded-2xl border border-slate-700 shadow-xl">
+                    <div class="mb-5 pb-3 border-b border-slate-700">
                         <h2 class="text-lg font-bold text-sky-400 flex items-center gap-2">
                             <i class="fa-solid fa-gift"></i> Выдать товар в инвентарь игроку
                         </h2>
-                        <button type="button" onclick="handleLogoutAdmin()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg active:scale-95">
-                            Выйти
-                        </button>
                     </div>
 
                     <form onsubmit="handleGiveItemToUser(event)" class="space-y-3.5">
@@ -384,7 +435,7 @@
                     </form>
                 </div>
 
-                <!-- Публикация товара в магазин -->
+                <!-- Публикация товара в магазин (все админы) -->
                 <div class="bg-slate-800 p-5 sm:p-8 rounded-2xl border border-slate-700 shadow-xl">
                     <h2 class="text-lg font-bold text-emerald-400 mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-plus-circle"></i> Опубликовать товар в магазин
@@ -393,7 +444,7 @@
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Режим</label>
-                                <select id="prod-category" onchange="updateAdminTypeOptions()" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm">
+                                <select id="prod-category" onchange="updateAdminTypeOptions(); scheduleAutoImage()" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm">
                                     <option value="adopt">Adopt Me</option>
                                     <option value="mm2">MM2</option>
                                 </select>
@@ -406,12 +457,19 @@
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Название товара</label>
-                            <input type="text" id="prod-title" required placeholder="Frost Dragon" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm">
+                            <input type="text" id="prod-title" required oninput="scheduleAutoImage()" placeholder="Frost Dragon" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm">
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-3 gap-2">
                             <div>
-                                <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Цена (грн / ₴)</label>
+                                <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Цена</label>
                                 <input type="number" id="prod-price" min="1" required placeholder="150" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Валюта</label>
+                                <select id="prod-currency" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm">
+                                    <option value="UAH">₴ Гривны</option>
+                                    <option value="RUB">₽ Рубли</option>
+                                </select>
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Скидка (%)</label>
@@ -424,6 +482,15 @@
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Фотография</label>
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="w-16 h-16 bg-slate-900 rounded-lg border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                    <img id="prod-img-preview" alt="" class="max-w-full max-h-full object-contain">
+                                </div>
+                                <div class="flex-1">
+                                    <button type="button" onclick="autoFindProductImage()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold py-2 rounded-xl active:scale-95">🔍 Найти картинку по названию</button>
+                                    <p id="prod-img-status" class="text-[10px] text-slate-400 mt-1">Введите название (например Cat) — картинка подставится сама</p>
+                                </div>
+                            </div>
                             <input type="file" id="prod-img" accept="image/*" class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white cursor-pointer bg-slate-900 p-1.5 rounded-xl border border-slate-700">
                         </div>
                         <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold p-3 rounded-xl transition shadow-lg active:scale-95 text-sm">
@@ -432,7 +499,7 @@
                     </form>
                 </div>
 
-                <!-- Настройка Цены и Содержимого Кейсов -->
+                <!-- Настройка Цены и Содержимого Кейсов (все админы) -->
                 <div class="bg-slate-800 p-5 sm:p-8 rounded-2xl border border-slate-700 shadow-xl">
                     <h2 class="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-box-archive"></i> Настройка Цены и Кейсов
@@ -459,15 +526,15 @@
                         </div>
 
                         <div id="admin-case-items-list" class="space-y-4 max-h-96 overflow-y-auto pr-1"></div>
-                        
+
                         <button type="button" onclick="saveAdminCaseSettings()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold p-3 rounded-xl transition shadow-lg active:scale-95 text-sm">
                             Сохранить цену и настройки кейса
                         </button>
                     </div>
                 </div>
 
-                <!-- Выдача прокрутов -->
-                <div class="bg-slate-800 p-5 sm:p-8 rounded-2xl border border-slate-700 shadow-xl">
+                <!-- Выдача прокрутов (только создатель) -->
+                <div class="owner-only bg-slate-800 p-5 sm:p-8 rounded-2xl border border-slate-700 shadow-xl">
                     <h2 class="text-lg font-bold text-indigo-400 mb-2 flex items-center gap-2">
                         <i class="fa-solid fa-ticket"></i> Выдать прокруты кейса
                     </h2>
@@ -493,16 +560,16 @@
                     </form>
                 </div>
 
-                <!-- Логи открытий -->
-                <div class="bg-slate-800 p-5 sm:p-8 rounded-2xl border border-slate-700 shadow-xl">
+                <!-- Логи открытий (только создатель) -->
+                <div class="owner-only bg-slate-800 p-5 sm:p-8 rounded-2xl border border-slate-700 shadow-xl">
                     <h2 class="text-lg font-bold text-slate-300 mb-3 flex items-center gap-2">
                         <i class="fa-solid fa-clock-rotate-left"></i> История открытий кейсов
                     </h2>
                     <div id="admin-cases-logs" class="space-y-2 max-h-60 overflow-y-auto"></div>
                 </div>
 
-                <!-- СПИСОК ЗАРЕГИСТРИРОВАННЫХ ПОЛЬЗОВАТЕЛЕЙ -->
-                <div class="bg-slate-800 p-5 sm:p-8 rounded-2xl border border-slate-700 shadow-xl">
+                <!-- Пользователи (только создатель) -->
+                <div class="owner-only bg-slate-800 p-5 sm:p-8 rounded-2xl border border-slate-700 shadow-xl">
                     <div class="flex justify-between items-center mb-3">
                         <h2 class="text-lg font-bold text-indigo-300 flex items-center gap-2">
                             <i class="fa-solid fa-users"></i> Зарегистрированные пользователи
@@ -561,7 +628,7 @@
     <!-- Модальное окно Профиля -->
     <div id="profile-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-xs sm:max-w-sm w-full p-6 text-center shadow-2xl relative space-y-4">
-            
+
             <div class="relative w-20 h-20 mx-auto">
                 <div class="w-20 h-20 bg-indigo-600 text-white font-black text-3xl rounded-full flex items-center justify-center uppercase overflow-hidden border-2 border-indigo-400 shadow-md" id="prof-modal-avatar">U</div>
                 <label for="avatar-input" class="absolute bottom-0 right-0 bg-amber-500 hover:bg-amber-400 text-slate-950 p-2 rounded-full cursor-pointer shadow-lg transition active:scale-90 w-8 h-8 flex items-center justify-center">
@@ -588,9 +655,45 @@
                 <button type="button" onclick="openChatModal()" class="col-span-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
                     <i class="fa-solid fa-comments text-sm"></i> Открыть Чат
                 </button>
+                <button type="button" onclick="openSettingsModal()" class="col-span-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-gear text-sm text-amber-400"></i> Настройки
+                </button>
             </div>
 
             <button type="button" onclick="closeProfileModal()" class="w-full bg-slate-700 text-slate-200 font-bold py-2 rounded-xl transition text-xs">
+                Закрыть
+            </button>
+        </div>
+    </div>
+
+    <!-- Модальное окно НАСТРОЕК -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-xs sm:max-w-sm w-full p-6 shadow-2xl relative space-y-5">
+            <h3 class="text-lg font-bold text-white text-center flex items-center justify-center gap-2">
+                <i class="fa-solid fa-gear text-amber-400"></i> Настройки
+            </h3>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-2 uppercase">Язык сайта</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" id="lang-btn-ru" onclick="setLang('ru')" class="py-2 rounded-xl text-xs font-bold transition bg-slate-700 text-slate-300">🇷🇺 Русский</button>
+                    <button type="button" id="lang-btn-en" onclick="setLang('en')" class="py-2 rounded-xl text-xs font-bold transition bg-slate-700 text-slate-300">🇬🇧 English</button>
+                    <button type="button" id="lang-btn-uk" onclick="setLang('uk')" class="py-2 rounded-xl text-xs font-bold transition bg-slate-700 text-slate-300">🇺🇦 Українська</button>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center gap-3 bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+                <div>
+                    <h4 class="font-bold text-orange-400 text-sm">🎃 Тема Хэллоуин</h4>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Тёмная тема с тыквами, привидениями и летучими мышами</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input type="checkbox" id="halloween-toggle" onchange="setHalloween(this.checked)" class="sr-only peer">
+                    <div class="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                </label>
+            </div>
+
+            <button type="button" onclick="closeSettingsModal()" class="w-full bg-slate-700 text-slate-200 font-bold py-2 rounded-xl transition text-xs">
                 Закрыть
             </button>
         </div>
@@ -658,135 +761,509 @@
     </div>
 
     <script>
+        /* =====================================================
+           УТИЛИТЫ
+        ===================================================== */
+        const $ = id => document.getElementById(id);
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const PH = (txt, color) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" rx="14" fill="${color}"/><text x="60" y="70" font-size="22" font-family="Arial" font-weight="700" fill="#ffffff" text-anchor="middle">${txt}</text></svg>`);
+        const PLACEHOLDER = PH('?', '#475569');
+        const safeImg = u => (u && !String(u).includes('via.placeholder.com')) ? u : PLACEHOLDER;
+        const curSym = c => c === 'RUB' ? '₽' : '₴';
+
+        /* =====================================================
+           ПЕРЕВОД (русский / английский / украинский)
+        ===================================================== */
+        let lang = localStorage.getItem('roblox_lang') || 'ru';
+        const LOC = { ru: 'ru-RU', en: 'en-GB', uk: 'uk-UA' };
+
+        // [английский, украинский]
+        const TR = Object.assign(Object.create(null), {
+            'Админ': ['Admin', 'Адмін'],
+            'Кейс Adopt Me': ['Adopt Me Case', 'Кейс Adopt Me'],
+            'Кейс MM2': ['MM2 Case', 'Кейс MM2'],
+            'Кейс Am': ['Case Am', 'Кейс Am'],
+            'Инвентарь': ['Inventory', 'Інвентар'],
+            'Инв.': ['Inv.', 'Інв.'],
+            'Профиль': ['Profile', 'Профіль'],
+            'Отзывы': ['Reviews', 'Відгуки'],
+            'Пользователь': ['User', 'Користувач'],
+            'Все темы': ['All types', 'Усі теми'],
+            'Валюта': ['Currency', 'Валюта'],
+            '₴ Гривны': ['₴ Hryvnia', '₴ Гривні'],
+            '₽ Рубли': ['₽ Rubles', '₽ Рублі'],
+            'Поиск товаров...': ['Search items...', 'Пошук товарів...'],
+            'Товаров в этой категории не найдено': ['No items found in this category', 'Товарів у цій категорії не знайдено'],
+            'Коляска': ['Stroller', 'Коляска'],
+            'Еда': ['Food', 'Їжа'],
+            'Яйцо': ['Egg', 'Яйце'],
+            'Машина': ['Car', 'Машина'],
+            'Игрушка': ['Toy', 'Іграшка'],
+            'Подарок': ['Gift', 'Подарунок'],
+            'Другое': ['Other', 'Інше'],
+            'Нож': ['Knife', 'Ніж'],
+            'Пистолет': ['Gun', 'Пістолет'],
+            'Товар': ['Item', 'Товар'],
+            'Купить': ['Buy', 'Купити'],
+            'Удалить': ['Delete', 'Видалити'],
+            'Изменить цену': ['Change price', 'Змінити ціну'],
+            'Испытай удачу и выиграй питомца из Adopt Me!': ['Try your luck and win a pet from Adopt Me!', 'Спробуй удачу та виграй улюбленця з Adopt Me!'],
+            'Испытай удачу и выиграй крутой нож или ган из MM2!': ['Try your luck and win a cool knife or gun from MM2!', 'Спробуй удачу та виграй крутий ніж або ган з MM2!'],
+            'Цена открытия:': ['Opening price:', 'Ціна відкриття:'],
+            'Ваши попытки:': ['Your tries:', 'Ваші спроби:'],
+            'Открыть кейс Adopt Me': ['Open Adopt Me case', 'Відкрити кейс Adopt Me'],
+            'Открыть кейс MM2': ['Open MM2 case', 'Відкрити кейс MM2'],
+            'Что может выпасть:': ['What can drop:', 'Що може випасти:'],
+            'Ваш Инвентарь': ['Your Inventory', 'Ваш Інвентар'],
+            'Здесь хранятся ваши купленные, избранные и выигранные из боксов вещи': ['Your purchased, favorite and case-won items are stored here', 'Тут зберігаються ваші куплені, обрані та виграні з боксів речі'],
+            'Все предметы': ['All items', 'Усі предмети'],
+            'Избранное': ['Favorites', 'Обране'],
+            'Ваш инвентарь пуст. Ожидайте выдачи товара администратором или откройте кейсы!': ['Your inventory is empty. Wait for an admin to give you an item or open cases!', 'Ваш інвентар порожній. Очікуйте видачі товару адміністратором або відкрийте кейси!'],
+            'У вас нет предметов в избранном. Нажмите ❤️ в магазине или ⭐ в инвентаре, чтобы добавить их сюда!': ['You have no favorite items. Tap ❤️ in the shop or ⭐ in the inventory to add them here!', 'У вас немає обраних предметів. Натисніть ❤️ у магазині або ⭐ в інвентарі, щоб додати їх сюди!'],
+            'Из магазина': ['From shop', 'З магазину'],
+            'Из избранного': ['Unfavorite', 'З обраного'],
+            'Убрать': ['Remove', 'Прибрати'],
+            'Оставить отзыв': ['Leave a review', 'Залишити відгук'],
+            'Никнейм': ['Nickname', 'Нікнейм'],
+            'Email при регистрации': ['Registration email', 'Email при реєстрації'],
+            'Оценка звёздами': ['Star rating', 'Оцінка зірками'],
+            '⭐⭐⭐⭐⭐ (5/5) — Отлично!': ['⭐⭐⭐⭐⭐ (5/5) — Excellent!', '⭐⭐⭐⭐⭐ (5/5) — Чудово!'],
+            '⭐⭐⭐⭐ (4/5) — Хорошо': ['⭐⭐⭐⭐ (4/5) — Good', '⭐⭐⭐⭐ (4/5) — Добре'],
+            '⭐⭐⭐ (3/5) — Нормально': ['⭐⭐⭐ (3/5) — OK', '⭐⭐⭐ (3/5) — Нормально'],
+            '⭐⭐ (2/5) — Плохо': ['⭐⭐ (2/5) — Bad', '⭐⭐ (2/5) — Погано'],
+            '⭐ (1/5) — Ужасно': ['⭐ (1/5) — Terrible', '⭐ (1/5) — Жахливо'],
+            'Описание проблемы / Отзыв': ['Problem description / Review', 'Опис проблеми / Відгук'],
+            'Например: Player_123': ['For example: Player_123', 'Наприклад: Player_123'],
+            'Опишите впечатление или возникшую проблему...': ['Describe your experience or the problem...', 'Опишіть враження або проблему...'],
+            'Опубликовать отзыв': ['Publish review', 'Опублікувати відгук'],
+            'Все отзывы': ['All reviews', 'Усі відгуки'],
+            'Отзывов пока нет.': ['No reviews yet.', 'Відгуків поки немає.'],
+            'Email не указан': ['Email not provided', 'Email не вказано'],
+            'Удалить отзыв': ['Delete review', 'Видалити відгук'],
+            'Панель Администратора': ['Admin Panel', 'Панель адміністратора'],
+            'Введите Telegram и пароль для администрирования': ['Enter your Telegram and password to manage the site', 'Введіть Telegram і пароль для адміністрування'],
+            'Ваш Telegram @ (например @TOPTTL)': ['Your Telegram @ (e.g. @TOPTTL)', 'Ваш Telegram @ (наприклад @TOPTTL)'],
+            'Пароль администратора...': ['Admin password...', 'Пароль адміністратора...'],
+            'Личный пароль (при первом входе придумайте)': ['Personal password (create it on first login)', 'Особистий пароль (під час першого входу придумайте)'],
+            'Каждый Telegram @ занимается один раз. Личный пароль (от 6 символов) защищает ваш @ от других.': ['Each Telegram @ can be claimed only once. Your personal password (6+ characters) protects your @ from others.', 'Кожен Telegram @ займається лише раз. Особистий пароль (від 6 символів) захищає ваш @ від інших.'],
+            'Войти в панель': ['Enter panel', 'Увійти в панель'],
+            'Вы вошли как': ['Signed in as', 'Ви увійшли як'],
+            'Создатель сайта': ['Site creator', 'Творець сайту'],
+            'Админ: только товары и боксы': ['Admin: products and cases only', 'Адмін: лише товари та бокси'],
+            'Выйти': ['Log out', 'Вийти'],
+            'Включить тег администратора': ['Enable admin tag', 'Увімкнути тег адміністратора'],
+            'Отображает плашку [СОЗДАТЕЛЬ] возле вашего ника в чате для всех игроков': ['Shows a [CREATOR] badge next to your nickname in chat for all players', 'Показує плашку [ТВОРЕЦЬ] біля вашого ніка в чаті для всіх гравців'],
+            'Закрыть сайт': ['Close site', 'Закрити сайт'],
+            'Когда сайт закрыт, внутрь могут зайти только админы': ['When the site is closed, only admins can enter', 'Коли сайт закрито, зайти можуть лише адміни'],
+            'Админы': ['Admins', 'Адміни'],
+            'Видно только создателю. Здесь можно увидеть, кто в сети, и убрать админа.': ['Visible to the creator only. See who is online and remove admins.', 'Видно лише творцю. Тут можна побачити, хто в мережі, і прибрати адміна.'],
+            'Выдать товар в инвентарь игроку': ['Give an item to a player', 'Видати товар в інвентар гравцю'],
+            'Email игрока': ['Player email', 'Email гравця'],
+            'Название товара / скина': ['Item / skin name', 'Назва товару / скіна'],
+            'Например: Frost Dragon': ['For example: Frost Dragon', 'Наприклад: Frost Dragon'],
+            'Редкость': ['Rarity', 'Рідкість'],
+            'Common (Обычный)': ['Common', 'Common (Звичайний)'],
+            'Rare (Редкий)': ['Rare', 'Rare (Рідкісний)'],
+            'Epic (Эпический)': ['Epic', 'Epic (Епічний)'],
+            'Legendary (Легендарный)': ['Legendary', 'Legendary (Легендарний)'],
+            'Godly (Божественный)': ['Godly', 'Godly (Божественний)'],
+            'Фотография товара (Файл или Ссылка)': ['Item photo (file or link)', 'Фото товару (файл або посилання)'],
+            'Или вставьте URL картинки...': ['Or paste an image URL...', 'Або вставте URL картинки...'],
+            'Положить вещь в инвентарь игроку': ["Put item in player's inventory", 'Покласти річ в інвентар гравцю'],
+            'Опубликовать товар в магазин': ['Publish item to shop', 'Опублікувати товар у магазин'],
+            'Режим': ['Mode', 'Режим'],
+            'Тип предмета': ['Item type', 'Тип предмета'],
+            'Название товара': ['Item name', 'Назва товару'],
+            'Цена': ['Price', 'Ціна'],
+            'Скидка (%)': ['Discount (%)', 'Знижка (%)'],
+            '🔥 Закрепить как Трендовый товар': ['🔥 Pin as Trending item', '🔥 Закріпити як трендовий товар'],
+            'Фотография': ['Photo', 'Фото'],
+            '🔍 Найти картинку по названию': ['🔍 Find image by name', '🔍 Знайти картинку за назвою'],
+            'Введите название (например Cat) — картинка подставится сама': ['Type a name (e.g. Cat) — the image will appear automatically', 'Введіть назву (наприклад Cat) — картинка підставиться сама'],
+            'Ищу картинку…': ['Searching for an image…', 'Шукаю картинку…'],
+            'Картинка найдена': ['Image found', 'Картинку знайдено'],
+            'Картинка не найдена — загрузите фото': ['Image not found — upload a photo', 'Картинку не знайдено — завантажте фото'],
+            'Добавить в магазин': ['Add to shop', 'Додати в магазин'],
+            'Настройка Цены и Кейсов': ['Price & case settings', 'Налаштування ціни та кейсів'],
+            'Выбрать кейс': ['Choose case', 'Обрати кейс'],
+            'Цена открытия кейса (грн / ₴)': ['Case opening price (UAH / ₴)', 'Ціна відкриття кейса (грн / ₴)'],
+            'Содержимое кейса:': ['Case contents:', 'Вміст кейса:'],
+            'Добавить предмет': ['Add item', 'Додати предмет'],
+            'Сохранить цену и настройки кейса': ['Save price and case settings', 'Зберегти ціну та налаштування кейса'],
+            'Название': ['Name', 'Назва'],
+            'Шанс (напр. 10%)': ['Chance (e.g. 10%)', 'Шанс (напр. 10%)'],
+            'Ссылка на фото (URL)': ['Photo link (URL)', 'Посилання на фото (URL)'],
+            'Удалить предмет из кейса': ['Remove item from case', 'Видалити предмет з кейса'],
+            'Выдать прокруты кейса': ['Give case spins', 'Видати прокрути кейса'],
+            'Кейс': ['Case', 'Кейс'],
+            'Количество попыток': ['Number of tries', 'Кількість спроб'],
+            'Выдать попытки': ['Give tries', 'Видати спроби'],
+            'История открытий кейсов': ['Case opening history', 'Історія відкриттів кейсів'],
+            'История пуста': ['History is empty', 'Історія порожня'],
+            'Зарегистрированные пользователи': ['Registered users', 'Зареєстровані користувачі'],
+            'Пользователей пока нет': ['No users yet', 'Користувачів поки немає'],
+            'Дата регистрации:': ['Registration date:', 'Дата реєстрації:'],
+            'Неизвестно': ['Unknown', 'Невідомо'],
+            'Регистрация': ['Registration', 'Реєстрація'],
+            'Введите ник и почту для доступа к возможностям': ['Enter a nickname and email to get access to all features', 'Введіть нік і пошту для доступу до можливостей'],
+            'Войти': ['Sign in', 'Увійти'],
+            'Сохранить никнейм': ['Save nickname', 'Зберегти нікнейм'],
+            'Админ-Панель': ['Admin panel', 'Адмін-панель'],
+            'Открыть Чат': ['Open chat', 'Відкрити чат'],
+            'Настройки': ['Settings', 'Налаштування'],
+            'Закрыть': ['Close', 'Закрити'],
+            'Язык сайта': ['Site language', 'Мова сайту'],
+            '🎃 Тема Хэллоуин': ['🎃 Halloween theme', '🎃 Тема Геловін'],
+            'Тёмная тема с тыквами, привидениями и летучими мышами': ['Dark theme with pumpkins, ghosts and bats', 'Темна тема з гарбузами, привидами та кажанами'],
+            'Общий Чат Игроков': ["Players' Chat", 'Загальний чат гравців'],
+            'Онлайн:': ['Online:', 'Онлайн:'],
+            '| Всего игроков:': ['| Total players:', '| Усього гравців:'],
+            'Напишите сообщение в чат...': ['Write a message...', 'Напишіть повідомлення в чат...'],
+            'Сообщений в чате пока нет. Напишите первым!': ['No messages yet. Be the first to write!', 'Повідомлень у чаті поки немає. Напишіть першим!'],
+            'Администратор': ['Administrator', 'Адміністратор'],
+            'Создатель': ['Creator', 'Творець'],
+            'Покупка товара': ['Purchase', 'Купівля товару'],
+            'Напишите администратору в Telegram для получения товара': ['Message the admin on Telegram to get the item', 'Напишіть адміністратору в Telegram для отримання товару'],
+            'Сайт временно закрыт': ['Site temporarily closed', 'Сайт тимчасово закрито'],
+            'Попробуйте зайти позже.': ['Please try again later.', 'Спробуйте зайти пізніше.'],
+            'Вход для администраторов': ['Admin entrance', 'Вхід для адміністраторів'],
+            'Удалён': ['Deleted', 'Видалений'],
+            'В сети': ['Online', 'У мережі'],
+            'Нет данных': ['No data', 'Немає даних'],
+            'Вернуть': ['Restore', 'Повернути'],
+            'Админов пока нет': ['No admins yet', 'Адмінів поки немає'],
+            // --- сообщения (alert / confirm / prompt) ---
+            'грн': ['UAH', 'грн'],
+            'Никнейм обновлён!': ['Nickname updated!', 'Нікнейм оновлено!'],
+            'Успешный вход в админ-панель!': ['Successfully logged in to the admin panel!', 'Успішний вхід в адмін-панель!'],
+            'Неверный пароль!': ['Wrong password!', 'Невірний пароль!'],
+            'Введите корректный Telegram @ (5–32 символа: латиница, цифры, _)': ['Enter a valid Telegram @ (5–32 characters: Latin letters, digits, _)', 'Введіть коректний Telegram @ (5–32 символи: латиниця, цифри, _)'],
+            'Сначала зарегистрируйтесь!': ['Please register first!', 'Спочатку зареєструйтесь!'],
+            'Личный пароль должен быть не короче 6 символов.': ['Personal password must be at least 6 characters.', 'Особистий пароль має бути не коротшим за 6 символів.'],
+            'Нет связи с базой. Попробуйте позже.': ['No connection to the database. Try again later.', 'Немає зв’язку з базою. Спробуйте пізніше.'],
+            'Для входа нужен защищённый адрес (https).': ['A secure address (https) is required to log in.', 'Для входу потрібна захищена адреса (https).'],
+            'Доступ для этого админа закрыт создателем.': ['Access for this admin was closed by the creator.', 'Доступ для цього адміна закрито творцем.'],
+            'Этот Telegram @ уже занят другим админом (или неверный личный пароль).': ['This Telegram @ is already taken by another admin (or the personal password is wrong).', 'Цей Telegram @ уже зайнятий іншим адміном (або невірний особистий пароль).'],
+            'Доступ администратора недействителен. Войдите заново.': ['Admin access is no longer valid. Please log in again.', 'Доступ адміністратора недійсний. Увійдіть заново.'],
+            'Ваш доступ администратора был отозван.': ['Your admin access has been revoked.', 'Ваш доступ адміністратора було відкликано.'],
+            'Удалить админа': ['Remove admin', 'Видалити адміна'],
+            'Он сразу потеряет доступ.': ['They will lose access immediately.', 'Він одразу втратить доступ.'],
+            'Нет прав для этого действия.': ['You do not have permission for this action.', 'Немає прав для цієї дії.'],
+            'Товар добавлен в магазин!': ['Item added to the shop!', 'Товар додано в магазин!'],
+            'Удалить товар?': ['Delete this item?', 'Видалити товар?'],
+            'Новая цена': ['New price', 'Нова ціна'],
+            'Введите корректную цену (число от 1)': ['Enter a valid price (a number from 1)', 'Введіть коректну ціну (число від 1)'],
+            'Цена обновлена!': ['Price updated!', 'Ціну оновлено!'],
+            'У вас нет оплаченных попыток!': ['You have no paid tries!', 'У вас немає оплачених спроб!'],
+            'Напишите в Telegram админу: @TOPTTL для оплаты и получения спинов.': ['Message the admin on Telegram: @TOPTTL to pay and get spins.', 'Напишіть в Telegram адміну: @TOPTTL для оплати та отримання спінів.'],
+            'ПОЗДРАВЛЯЕМ!': ['CONGRATULATIONS!', 'ВІТАЄМО!'],
+            'Вы выиграли предмет:': ['You won the item:', 'Ви виграли предмет:'],
+            'Предмет добавлен в ваш инвентарь.': ['The item was added to your inventory.', 'Предмет додано у ваш інвентар.'],
+            'Убрать предмет из инвентаря?': ['Remove this item from the inventory?', 'Прибрати предмет з інвентаря?'],
+            'Успешно!': ['Success!', 'Успішно!'],
+            'Предмет': ['Item', 'Предмет'],
+            'выдан игроку': ['given to player', 'видано гравцю'],
+            'Цена и настройки кейса успешно сохранены!': ['Case price and settings saved!', 'Ціну та налаштування кейса збережено!'],
+            'Успешно выдано прокрутов:': ['Spins given:', 'Успішно видано прокрутів:'],
+            'Отзыв опубликован!': ['Review published!', 'Відгук опубліковано!'],
+            'Удалить этот отзыв?': ['Delete this review?', 'Видалити цей відгук?']
+        });
+
+        const RULES = [
+            [/^(\d+) товаров$/, (r, i) => i ? `${r[1]} items` : `${r[1]} товарів`],
+            [/^(\d+) пользователей$/, (r, i) => i ? `${r[1]} users` : `${r[1]} користувачів`],
+            [/^(\d+) админов$/, (r, i) => i ? `${r[1]} admins` : `${r[1]} адмінів`],
+            [/^(\d+) спинов$/, (r, i) => i ? `${r[1]} spins` : `${r[1]} спінів`],
+            [/^(\d+) грн \/ ₴$/, (r, i) => i ? `${r[1]} UAH / ₴` : `${r[1]} грн / ₴`],
+            [/^Шанс: (.+)$/, (r, i) => i ? `Chance: ${r[1]}` : `Шанс: ${r[1]}`],
+            [/^Предмет #(\d+)$/, (r, i) => i ? `Item #${r[1]}` : `Предмет #${r[1]}`],
+            [/^Кейс: (.+) \| Выпало:$/, (r, i) => i ? `Case: ${r[1]} | Dropped:` : `Кейс: ${r[1]} | Випало:`],
+            [/^На сайте: 0 дней \(Сегодня\)$/, (r, i) => i ? 'On site: 0 days (Today)' : 'На сайті: 0 днів (Сьогодні)'],
+            [/^На сайте: (\d+) дн\.$/, (r, i) => i ? `On site: ${r[1]} d.` : `На сайті: ${r[1]} дн.`],
+            [/^Был\(а\) в сети: (.+)$/, (r, i) => i ? `Last online: ${r[1]}` : `Був(ла) в мережі: ${r[1]}`],
+            [/^Написать в Telegram \(@(.+)\)$/, (r, i) => i ? `Message on Telegram (@${r[1]})` : `Написати в Telegram (@${r[1]})`]
+        ];
+
+        function langIdx() { return lang === 'en' ? 0 : 1; }
+        function t(s) { return (lang === 'ru' || !TR[s]) ? s : TR[s][langIdx()]; }
+
+        function localize(src) {
+            if (lang === 'ru') return src;
+            const m = src.match(/^(\s*)([\s\S]*?)(\s*)$/);
+            const key = m[2];
+            if (!key) return src;
+            const i = langIdx();
+            if (TR[key]) return m[1] + TR[key][i] + m[3];
+            for (const [re, fn] of RULES) {
+                const r = key.match(re);
+                if (r) return m[1] + fn(r, i) + m[3];
+            }
+            return src;
+        }
+
+        function trNode(n) {
+            const cur = n.nodeValue;
+            let src;
+            if (n._ap !== undefined && n._ap === cur) src = n._o;
+            else { src = cur; n._o = cur; }
+            const out = localize(src);
+            n._ap = out;
+            if (out !== cur) n.nodeValue = out;
+        }
+
+        function trAttrs(el) {
+            ['placeholder', 'title'].forEach(a => {
+                if (!el.hasAttribute || !el.hasAttribute(a)) return;
+                const cur = el.getAttribute(a);
+                let src;
+                if (el['_ap_' + a] === cur) src = el['_o_' + a];
+                else { src = cur; el['_o_' + a] = cur; }
+                const out = localize(src);
+                el['_ap_' + a] = out;
+                if (out !== cur) el.setAttribute(a, out);
+            });
+        }
+
+        function trAll(root) {
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                acceptNode: n => (n.parentNode && /^(SCRIPT|STYLE)$/.test(n.parentNode.nodeName)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+            });
+            const nodes = [];
+            let n;
+            while ((n = walker.nextNode())) nodes.push(n);
+            nodes.forEach(trNode);
+            if (root.nodeType === 1) {
+                trAttrs(root);
+                root.querySelectorAll('[placeholder],[title]').forEach(trAttrs);
+            }
+        }
+
+        const langObserver = new MutationObserver(muts => {
+            for (const m of muts) {
+                if (m.type === 'childList') {
+                    m.addedNodes.forEach(nd => {
+                        if (nd.nodeType === 3) trNode(nd);
+                        else if (nd.nodeType === 1) trAll(nd);
+                    });
+                } else if (m.type === 'characterData') {
+                    trNode(m.target);
+                }
+            }
+        });
+
+        function setLang(l) {
+            lang = l;
+            localStorage.setItem('roblox_lang', l);
+            document.documentElement.lang = l;
+            langObserver.disconnect();
+            trAll(document.body);
+            if (l !== 'ru') langObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+            updateLangButtons();
+        }
+
+        function updateLangButtons() {
+            ['ru', 'en', 'uk'].forEach(code => {
+                const b = $('lang-btn-' + code);
+                if (!b) return;
+                b.className = 'py-2 rounded-xl text-xs font-bold transition ' + (code === lang ? 'bg-amber-500 text-slate-950' : 'bg-slate-700 text-slate-300');
+            });
+        }
+
+        /* =====================================================
+           ТЕМА ХЭЛЛОУИН
+        ===================================================== */
+        function buildHalloweenDeco() {
+            const box = $('hw-deco');
+            if (!box || box.childElementCount) return;
+            const icons = ['🎃', '👻', '🦇', '🕷️', '🎃', '🦇', '👻', '🍬'];
+            for (let i = 0; i < 12; i++) {
+                const s = document.createElement('span');
+                s.className = 'hw-item';
+                s.textContent = icons[i % icons.length];
+                s.style.left = (Math.random() * 96) + '%';
+                s.style.fontSize = (16 + Math.random() * 16) + 'px';
+                s.style.animationDuration = (14 + Math.random() * 16) + 's';
+                s.style.animationDelay = (-Math.random() * 25) + 's';
+                box.appendChild(s);
+            }
+        }
+
+        function setHalloween(on) {
+            document.body.classList.toggle('halloween', !!on);
+            localStorage.setItem('roblox_halloween', on ? '1' : '0');
+            const tg = $('halloween-toggle');
+            if (tg) tg.checked = !!on;
+            if (on) buildHalloweenDeco();
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem('roblox_halloween');
+            setHalloween(saved === null ? true : saved === '1');
+        }
+
+        function openSettingsModal() {
+            closeProfileModal();
+            updateLangButtons();
+            $('settings-modal').classList.remove('hidden');
+        }
+        function closeSettingsModal() { $('settings-modal').classList.add('hidden'); }
+
+        /* =====================================================
+           ДАННЫЕ
+        ===================================================== */
         let currentTab = 'adopt';
         let isAdmin = false;
         let currentUser = null;
         let isSpinningCase = false;
         let allProductsCache = [];
+        let productsLoaded = false;
         let userFavorites = JSON.parse(localStorage.getItem('roblox_favorites') || '[]');
-        let currentInventoryFilter = 'all'; 
+        let currentInventoryFilter = 'all';
+        let savingProduct = false;
 
-        // Состояние закрытия сайта
-        let siteClosed = false;
+        // Закрытие сайта (берём последнее известное значение из кеша, чтобы экран появился мгновенно)
+        let siteClosed = localStorage.getItem('roblox_site_closed') === '1';
         let adminGate = false;
-        let siteStatusListening = false;
 
         // Система админов
-        const OWNER_TG = 'topttl'; // владелец (@TOPTTL), в нижнем регистре
+        const OWNER_TG = 'topttl'; // создатель сайта (@TOPTTL), в нижнем регистре
         let adminPresenceTimer = null;
         let adminSelfUnsub = null;
         let ownerListening = false;
         let adminVerifying = false;
         let adminsCache = {};
+        let fbStarted = false;
+        const started = {}; // защита от повторных подписок на Firebase
 
         let defaultCaseItems = {
             adopt: [
-                { name: "Shadow Dragon", rarity: "godly", chance: "2%", img: "https://via.placeholder.com/120/ef4444/ffffff?text=Shadow" },
-                { name: "Frost Dragon", rarity: "legendary", chance: "8%", img: "https://via.placeholder.com/120/eab308/ffffff?text=Frost" },
-                { name: "Bat Dragon", rarity: "legendary", chance: "10%", img: "https://via.placeholder.com/120/eab308/ffffff?text=Bat" },
-                { name: "Owl", rarity: "epic", chance: "30%", img: "https://via.placeholder.com/120/a855f7/ffffff?text=Owl" },
-                { name: "Unicorn", rarity: "rare", chance: "50%", img: "https://via.placeholder.com/120/3b82f6/ffffff?text=Unicorn" }
+                { name: "Shadow Dragon", rarity: "godly", chance: "2%", img: PH('Shadow', '#ef4444') },
+                { name: "Frost Dragon", rarity: "legendary", chance: "8%", img: PH('Frost', '#eab308') },
+                { name: "Bat Dragon", rarity: "legendary", chance: "10%", img: PH('Bat', '#eab308') },
+                { name: "Owl", rarity: "epic", chance: "30%", img: PH('Owl', '#a855f7') },
+                { name: "Unicorn", rarity: "rare", chance: "50%", img: PH('Unicorn', '#3b82f6') }
             ],
             mm2: [
-                { name: "Corrupt Gun", rarity: "godly", chance: "2%", img: "https://via.placeholder.com/120/ef4444/ffffff?text=Corrupt" },
-                { name: "Harvester", rarity: "godly", chance: "5%", img: "https://via.placeholder.com/120/ef4444/ffffff?text=Harvester" },
-                { name: "Icebreaker", rarity: "legendary", chance: "15%", img: "https://via.placeholder.com/120/eab308/ffffff?text=Icebreaker" },
-                { name: "Candy Knife", rarity: "epic", chance: "28%", img: "https://via.placeholder.com/120/a855f7/ffffff?text=Candy" },
-                { name: "Seer", rarity: "rare", chance: "50%", img: "https://via.placeholder.com/120/3b82f6/ffffff?text=Seer" }
+                { name: "Corrupt Gun", rarity: "godly", chance: "2%", img: PH('Corrupt', '#ef4444') },
+                { name: "Harvester", rarity: "godly", chance: "5%", img: PH('Harvester', '#ef4444') },
+                { name: "Icebreaker", rarity: "legendary", chance: "15%", img: PH('Icebreaker', '#eab308') },
+                { name: "Candy Knife", rarity: "epic", chance: "28%", img: PH('Candy', '#a855f7') },
+                { name: "Seer", rarity: "rare", chance: "50%", img: PH('Seer', '#3b82f6') }
             ]
         };
-        
+
         let currentCaseItems = {
             adopt: [...defaultCaseItems.adopt],
             mm2: [...defaultCaseItems.mm2]
         };
-        
+
         let currentCasePrices = { adopt: 50, mm2: 50 };
 
-        window.addEventListener('DOMContentLoaded', () => {
+        /* =====================================================
+           ЗАПУСК (сразу, не ждём Firebase)
+        ===================================================== */
+        function loadProductsCache() {
+            try {
+                const c = JSON.parse(localStorage.getItem('roblox_products_cache') || 'null');
+                if (Array.isArray(c)) { allProductsCache = c; productsLoaded = true; }
+            } catch (e) {}
+        }
+        function saveProductsCache() {
+            try {
+                const s = JSON.stringify(allProductsCache);
+                if (s.length < 4000000) localStorage.setItem('roblox_products_cache', s);
+            } catch (e) {}
+        }
+
+        function initApp() {
+            loadProductsCache();
+            initTheme();
             checkUserAuth();
-            renderCaseTape('adopt');
-            renderCaseShowcase('adopt');
-            renderCaseTape('mm2');
-            renderCaseShowcase('mm2');
             updateAdminTypeOptions();
             switchTab('adopt');
-            if (window.firebaseReady) {
-                verifyAdminSession();
-                loadSiteStatus();
-                loadProducts();
-                loadCaseData('adopt');
-                loadCaseData('mm2');
-                loadChatMessages();
-                loadChatStats();
-                loadRegisteredUsers();
-            }
-        });
+            applySiteLock();
+            $('prod-img-preview').src = PLACEHOLDER;
+            if (lang !== 'ru') setLang(lang);
+            updateLangButtons();
+            if (window.firebaseReady) window.onFirebaseLoaded();
+        }
+
+        window.onFirebaseLoaded = function () {
+            if (fbStarted) return;
+            fbStarted = true;
+            verifyAdminSession();
+            loadSiteStatus();
+            loadProducts();
+            loadUserSpins('adopt');
+            loadUserSpins('mm2');
+            if (currentTab === 'case_adopt') loadCaseData('adopt');
+            if (currentTab === 'case_mm2') loadCaseData('mm2');
+        };
 
         function checkUserAuth() {
             const saved = localStorage.getItem('roblox_shop_user');
             if (saved) {
-                currentUser = JSON.parse(saved);
+                try { currentUser = JSON.parse(saved); } catch (e) { currentUser = null; }
+            }
+            if (currentUser) {
                 updateProfileUI();
                 verifyAdminSession();
             } else {
-                document.getElementById('auth-modal').classList.remove('hidden');
+                $('auth-modal').classList.remove('hidden');
             }
         }
 
         function handleRegisterUser(e) {
             e.preventDefault();
-            const username = document.getElementById('reg-username').value.trim();
-            const email = document.getElementById('reg-email').value.trim().toLowerCase();
+            const username = $('reg-username').value.trim();
+            const email = $('reg-email').value.trim().toLowerCase();
             if (!username || !email) return;
 
             const registeredAt = Date.now();
             currentUser = { username, email, isAdmin: false, avatar: null, showAdminTag: false, registeredAt };
             localStorage.setItem('roblox_shop_user', JSON.stringify(currentUser));
-            document.getElementById('auth-modal').classList.add('hidden');
-            
+            $('auth-modal').classList.add('hidden');
+
             if (window.firebaseReady) {
                 const { ref, set } = window.fb;
                 set(ref(window.rtdb, `registered_users/${safeEmailKey(email)}`), { username, email, registeredAt });
             }
             updateProfileUI();
+            loadUserSpins('adopt');
+            loadUserSpins('mm2');
         }
 
         function updateProfileUI() {
             if (!currentUser) return;
-            
-            const pcAvatar = document.getElementById('pc-avatar');
-            const modalAvatar = document.getElementById('prof-modal-avatar');
+
+            const pcAvatar = $('pc-avatar');
+            const modalAvatar = $('prof-modal-avatar');
 
             if (currentUser.avatar) {
-                pcAvatar.innerHTML = `<img src="${currentUser.avatar}" class="w-full h-full object-cover rounded-full">`;
-                modalAvatar.innerHTML = `<img src="${currentUser.avatar}" class="w-full h-full object-cover rounded-full">`;
+                pcAvatar.innerHTML = `<img src="${esc(currentUser.avatar)}" class="w-full h-full object-cover rounded-full">`;
+                modalAvatar.innerHTML = `<img src="${esc(currentUser.avatar)}" class="w-full h-full object-cover rounded-full">`;
             } else {
                 const letter = currentUser.username.charAt(0).toUpperCase();
                 pcAvatar.innerText = letter;
                 modalAvatar.innerText = letter;
             }
 
-            document.getElementById('pc-username').innerText = currentUser.username;
-            document.getElementById('pc-user-profile').classList.remove('hidden');
+            $('pc-username').innerText = currentUser.username;
+            $('pc-user-profile').classList.remove('hidden');
 
-            document.getElementById('prof-modal-username-input').value = currentUser.username;
-            document.getElementById('prof-modal-email').value = currentUser.email;
+            $('prof-modal-username-input').value = currentUser.username;
+            $('prof-modal-email').value = currentUser.email;
 
-            const revAuthor = document.getElementById('rev-author');
-            const revEmail = document.getElementById('rev-email');
+            const revAuthor = $('rev-author');
+            const revEmail = $('rev-email');
             if (revAuthor) revAuthor.value = currentUser.username;
             if (revEmail) revEmail.value = currentUser.email;
 
-            const tagToggle = document.getElementById('admin-tag-toggle');
+            const tagToggle = $('admin-tag-toggle');
             if (tagToggle) tagToggle.checked = !!currentUser.showAdminTag;
 
-            const tgInput = document.getElementById('admin-tg');
+            const tgInput = $('admin-tg');
             if (tgInput && currentUser.tgUsername) tgInput.value = '@' + currentUser.tgUsername;
-
-            loadUserSpins('adopt');
-            loadUserSpins('mm2');
-            loadUserInventory();
         }
 
         async function handleAvatarUpload(e) {
@@ -799,54 +1276,57 @@
         }
 
         function saveUpdatedUsername() {
-            const newName = document.getElementById('prof-modal-username-input').value.trim();
+            const newName = $('prof-modal-username-input').value.trim();
             if (!newName || !currentUser) return;
             currentUser.username = newName;
             localStorage.setItem('roblox_shop_user', JSON.stringify(currentUser));
             updateProfileUI();
-            alert('Никнейм обновлён!');
+            alert(t('Никнейм обновлён!'));
         }
 
-        function openProfileModal() { document.getElementById('profile-modal').classList.remove('hidden'); }
-        function closeProfileModal() { document.getElementById('profile-modal').classList.add('hidden'); }
+        function openProfileModal() { $('profile-modal').classList.remove('hidden'); }
+        function closeProfileModal() { $('profile-modal').classList.add('hidden'); }
 
-        function openChatModal() { 
-            closeProfileModal(); 
-            document.getElementById('chat-modal').classList.remove('hidden'); 
+        function openChatModal() {
+            closeProfileModal();
+            $('chat-modal').classList.remove('hidden');
             loadChatMessages();
             loadChatStats();
         }
-        function closeChatModal() { document.getElementById('chat-modal').classList.add('hidden'); }
+        function closeChatModal() { $('chat-modal').classList.add('hidden'); }
 
+        /* =====================================================
+           ВХОД АДМИНА
+        ===================================================== */
         async function handleCheckAdminPass(e) {
             if (e) e.preventDefault();
-            const pass = document.getElementById('admin-pass').value;
-            const personal = document.getElementById('admin-personal-pass').value;
-            const tg = document.getElementById('admin-tg').value.trim().replace(/^@/, '');
+            const pass = $('admin-pass').value;
+            const personal = $('admin-personal-pass').value;
+            const tg = $('admin-tg').value.trim().replace(/^@/, '');
 
             if (!currentUser) {
-                alert('Сначала зарегистрируйтесь!');
-                document.getElementById('auth-modal').classList.remove('hidden');
+                alert(t('Сначала зарегистрируйтесь!'));
+                $('auth-modal').classList.remove('hidden');
                 return;
             }
             if (!/^[A-Za-z0-9_]{5,32}$/.test(tg)) {
-                alert('Введите корректный Telegram @ (5–32 символа: латиница, цифры, _)');
+                alert(t('Введите корректный Telegram @ (5–32 символа: латиница, цифры, _)'));
                 return;
             }
-            if (pass !== 'Roblox2604Rusla') {
-                alert('Неверный пароль!');
+            if (pass !== '83768816338009') {
+                alert(t('Неверный пароль!'));
                 return;
             }
             if (personal.length < 6) {
-                alert('Личный пароль должен быть не короче 6 символов.');
+                alert(t('Личный пароль должен быть не короче 6 символов.'));
                 return;
             }
             if (!window.firebaseReady) {
-                alert('Нет связи с базой. Попробуйте позже.');
+                alert(t('Нет связи с базой. Попробуйте позже.'));
                 return;
             }
             if (!(window.crypto && window.crypto.subtle)) {
-                alert('Для входа нужен защищённый адрес (https).');
+                alert(t('Для входа нужен защищённый адрес (https).'));
                 return;
             }
 
@@ -859,11 +1339,11 @@
 
             if (rec) {
                 if (rec.removed) {
-                    alert('Доступ для этого админа закрыт владельцем.');
+                    alert(t('Доступ для этого админа закрыт создателем.'));
                     return;
                 }
                 if (rec.passHash !== hash) {
-                    alert('Этот Telegram @ уже занят другим админом (или неверный личный пароль).');
+                    alert(t('Этот Telegram @ уже занят другим админом (или неверный личный пароль).'));
                     return;
                 }
             } else {
@@ -875,25 +1355,38 @@
             currentUser.tgUsername = tg;
             currentUser.adminHash = hash;
             localStorage.setItem('roblox_shop_user', JSON.stringify(currentUser));
-            document.getElementById('admin-personal-pass').value = '';
+            $('admin-personal-pass').value = '';
             activateAdminState();
-            alert('Успешный вход в админ-панель!');
+            alert(t('Успешный вход в админ-панель!'));
         }
 
         function activateAdminState() {
-            document.getElementById('admin-login').classList.add('hidden');
-            document.getElementById('admin-panel').classList.remove('hidden');
-            document.getElementById('admin-badge').classList.remove('hidden');
+            $('admin-login').classList.add('hidden');
+            $('admin-panel').classList.remove('hidden');
+            $('admin-badge').classList.remove('hidden');
+            applyAdminPermissions();
             loadAdminCaseInputs();
-            loadAdminCasesLogs();
-            loadProducts();
-            loadRegisteredUsers();
+            if (isOwnerUser()) {
+                loadAdminCasesLogs();
+                loadRegisteredUsers();
+            }
+            renderProductsGrid();
             applySiteLock();
             startAdminPresence();
         }
 
+        // Показываем блоки «только создатель» лишь создателю
+        function applyAdminPermissions() {
+            const owner = isOwnerUser();
+            document.querySelectorAll('.owner-only').forEach(el => el.classList.toggle('hidden', !owner));
+            const who = $('admin-whoami');
+            if (who) who.innerText = currentUser && currentUser.tgUsername ? '@' + currentUser.tgUsername : '@';
+            const role = $('admin-role');
+            if (role) role.innerText = owner ? 'Создатель сайта' : 'Админ: только товары и боксы';
+        }
+
         function toggleAdminTagInChat(status) {
-            if (!currentUser) return;
+            if (!currentUser || !isOwnerUser()) return;
             currentUser.showAdminTag = status;
             localStorage.setItem('roblox_shop_user', JSON.stringify(currentUser));
         }
@@ -908,30 +1401,35 @@
                 currentUser.showAdminTag = false;
                 localStorage.setItem('roblox_shop_user', JSON.stringify(currentUser));
             }
-            document.getElementById('admin-login').classList.remove('hidden');
-            document.getElementById('admin-panel').classList.add('hidden');
-            document.getElementById('admin-badge').classList.add('hidden');
+            $('admin-login').classList.remove('hidden');
+            $('admin-panel').classList.add('hidden');
+            $('admin-badge').classList.add('hidden');
+            applyAdminPermissions();
             switchTab('adopt');
+            renderProductsGrid();
             applySiteLock();
         }
 
-        /* --- ЗАКРЫТИЕ / ОТКРЫТИЕ САЙТА --- */
+        /* =====================================================
+           ЗАКРЫТИЕ / ОТКРЫТИЕ САЙТА
+        ===================================================== */
         function loadSiteStatus() {
-            if (!window.firebaseReady || siteStatusListening) return;
-            siteStatusListening = true;
+            if (!window.firebaseReady || started.site) return;
+            started.site = true;
             const { ref, onValue } = window.fb;
             onValue(ref(window.rtdb, 'site_status'), (snap) => {
                 const val = snap.val();
                 siteClosed = !!(val && val.closed);
-                const t = document.getElementById('site-lock-toggle');
-                if (t) t.checked = siteClosed;
+                localStorage.setItem('roblox_site_closed', siteClosed ? '1' : '0');
+                const tg = $('site-lock-toggle');
+                if (tg) tg.checked = siteClosed;
                 applySiteLock();
             });
         }
 
         function applySiteLock() {
             const blocked = siteClosed && !isAdmin && !adminGate;
-            document.getElementById('site-closed-overlay').classList.toggle('hidden', !blocked);
+            $('site-closed-overlay').classList.toggle('hidden', !blocked);
             if (siteClosed && !isAdmin && adminGate && currentTab !== 'admin') switchTab('admin');
         }
 
@@ -942,12 +1440,14 @@
         }
 
         async function toggleSiteClosed(status) {
-            if (!isAdmin || !window.firebaseReady) return;
+            if (!isOwnerUser() || !window.firebaseReady) return;
             const { ref, set } = window.fb;
             await set(ref(window.rtdb, 'site_status'), { closed: status });
         }
 
-        /* --- СИСТЕМА АДМИНОВ: уникальный @, «в сети», управление владельцем --- */
+        /* =====================================================
+           СИСТЕМА АДМИНОВ: уникальный @, «в сети», управление создателем
+        ===================================================== */
         function adminKey(tg) {
             return String(tg || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
         }
@@ -974,7 +1474,7 @@
                 const snap = await get(ref(window.rtdb, 'admins/' + key));
                 const rec = snap.val();
                 if (!rec || rec.removed || rec.passHash !== currentUser.adminHash) {
-                    forceAdminLogout('Доступ администратора недействителен. Войдите заново.');
+                    forceAdminLogout(t('Доступ администратора недействителен. Войдите заново.'));
                 } else {
                     isAdmin = true;
                     activateAdminState();
@@ -1005,17 +1505,11 @@
             adminSelfUnsub = onValue(ref(window.rtdb, 'admins/' + key), (snap) => {
                 const rec = snap.val();
                 if (isAdmin && (!rec || rec.removed || rec.passHash !== currentUser.adminHash)) {
-                    forceAdminLogout('Ваш доступ администратора был отозван.');
+                    forceAdminLogout(t('Ваш доступ администратора был отозван.'));
                 }
             });
 
-            const block = document.getElementById('owner-admins-block');
-            if (isOwnerUser()) {
-                block.classList.remove('hidden');
-                startOwnerAdminsList();
-            } else {
-                block.classList.add('hidden');
-            }
+            if (isOwnerUser()) startOwnerAdminsList();
         }
 
         function stopAdminPresence() {
@@ -1029,8 +1523,6 @@
                     set(ref(window.rtdb, `admins/${key}/lastSeen`), Date.now());
                 }
             }
-            const block = document.getElementById('owner-admins-block');
-            if (block) block.classList.add('hidden');
         }
 
         function startOwnerAdminsList() {
@@ -1045,14 +1537,13 @@
         }
 
         function renderAdminsList() {
-            const box = document.getElementById('owner-admins-list');
-            const badge = document.getElementById('owner-admins-count');
+            const box = $('owner-admins-list');
+            const badge = $('owner-admins-count');
             if (!box || !isOwnerUser()) return;
 
             const entries = Object.entries(adminsCache).sort((a, b) => (b[1].lastSeen || 0) - (a[1].lastSeen || 0));
             const activeCount = entries.filter(([, a]) => !a.removed).length;
             if (badge) badge.innerText = `${activeCount} админов`;
-            box.innerHTML = '';
 
             if (entries.length === 0) {
                 box.innerHTML = `<p class="text-xs text-slate-500 text-center py-3">Админов пока нет</p>`;
@@ -1060,6 +1551,7 @@
             }
 
             const now = Date.now();
+            let html = '';
             entries.forEach(([key, a]) => {
                 const name = String(a.tg || key).replace(/[^A-Za-z0-9_]/g, '');
                 const online = !a.removed && a.lastSeen && (now - a.lastSeen < 120000);
@@ -1071,35 +1563,36 @@
                 } else if (online) {
                     statusHtml = `<span class="text-emerald-400"><i class="fa-solid fa-circle text-[7px] me-1"></i>В сети</span>`;
                 } else if (a.lastSeen) {
-                    const when = new Date(a.lastSeen).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                    statusHtml = `<span class="text-slate-400">Был(а) в сети: ${when}</span>`;
+                    const when = new Date(a.lastSeen).toLocaleString(LOC[lang] || 'ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    statusHtml = `<span class="text-slate-400">Был(а) в сети: ${esc(when)}</span>`;
                 } else {
                     statusHtml = `<span class="text-slate-500">Нет данных</span>`;
                 }
 
                 let actionHtml;
                 if (isOwnerRow) {
-                    actionHtml = `<span class="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-1 rounded-lg font-bold"><i class="fa-solid fa-crown me-1"></i>Владелец</span>`;
+                    actionHtml = `<span class="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-1 rounded-lg font-bold"><i class="fa-solid fa-crown me-1"></i>Создатель</span>`;
                 } else if (a.removed) {
                     actionHtml = `<button onclick="restoreAdmin('${key}')" class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg font-bold active:scale-95">Вернуть</button>`;
                 } else {
                     actionHtml = `<button onclick="removeAdmin('${key}')" class="text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 px-2.5 py-1 rounded-lg font-bold active:scale-95">Удалить</button>`;
                 }
 
-                box.innerHTML += `
+                html += `
                     <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 text-xs flex justify-between items-center gap-2">
                         <div class="space-y-0.5">
-                            <div class="font-bold text-white text-sm">@${name}</div>
+                            <div class="font-bold text-white text-sm">@${esc(name)}</div>
                             <div class="text-[10px]">${statusHtml}</div>
                         </div>
                         ${actionHtml}
                     </div>`;
             });
+            box.innerHTML = html;
         }
 
         async function removeAdmin(key) {
             if (!isOwnerUser() || key === OWNER_TG) return;
-            if (!confirm(`Удалить админа @${key}? Он сразу потеряет доступ.`)) return;
+            if (!confirm(`${t('Удалить админа')} @${key}? ${t('Он сразу потеряет доступ.')}`)) return;
             const { ref, set } = window.fb;
             await set(ref(window.rtdb, `admins/${key}/removed`), true);
         }
@@ -1110,9 +1603,11 @@
             await set(ref(window.rtdb, `admins/${key}/removed`), false);
         }
 
-        /* --- ОБНОВЛЕНИЕ ТЕМ В ФИЛЬТРЕ И АДМИНКЕ --- */
+        /* =====================================================
+           ФИЛЬТРЫ ТИПОВ
+        ===================================================== */
         function updateTypeFilterOptions() {
-            const filterSelect = document.getElementById('shop-type-filter');
+            const filterSelect = $('shop-type-filter');
             if (!filterSelect) return;
 
             let optionsHTML = '<option value="all">Все темы</option>';
@@ -1146,8 +1641,8 @@
         }
 
         function updateAdminTypeOptions() {
-            const catSelect = document.getElementById('prod-category');
-            const typeSelect = document.getElementById('prod-type');
+            const catSelect = $('prod-category');
+            const typeSelect = $('prod-type');
             if (!catSelect || !typeSelect) return;
 
             const selectedCat = catSelect.value;
@@ -1182,6 +1677,9 @@
             typeSelect.innerHTML = optionsHTML;
         }
 
+        /* =====================================================
+           ВКЛАДКИ
+        ===================================================== */
         function switchTab(tab) {
             if (siteClosed && !isAdmin && tab !== 'admin') { adminGate = false; applySiteLock(); return; }
 
@@ -1190,33 +1688,35 @@
             document.querySelectorAll('.tab-content').forEach(sec => sec.classList.add('hidden'));
 
             if (tab === 'adopt' || tab === 'mm2') {
-                document.getElementById('shop-section').classList.remove('hidden');
-                document.getElementById('section-title').innerText = tab === 'adopt' ? 'Adopt Me' : 'MM2';
+                $('shop-section').classList.remove('hidden');
+                $('section-title').innerText = tab === 'adopt' ? 'Adopt Me' : 'MM2';
                 updateTypeFilterOptions();
                 renderProductsGrid();
             } else {
-                const targetSec = document.getElementById(`${tab}-section`);
+                const targetSec = $(`${tab}-section`);
                 if (targetSec) targetSec.classList.remove('hidden');
             }
 
             const tabsArr = ['adopt', 'mm2', 'case_adopt', 'case_mm2', 'inventory', 'reviews', 'admin'];
-            tabsArr.forEach(t => {
-                const btn = document.getElementById('btn-' + t);
+            tabsArr.forEach(tb => {
+                const btn = $('btn-' + tb);
                 if (btn) {
-                    btn.className = (t === tab) 
-                        ? 'px-3.5 py-2 rounded-xl transition bg-indigo-600 text-white shadow-lg shadow-indigo-600/35 whitespace-nowrap active:scale-95' 
+                    btn.className = (tb === tab)
+                        ? 'px-3.5 py-2 rounded-xl transition bg-indigo-600 text-white shadow-lg shadow-indigo-600/35 whitespace-nowrap active:scale-95'
                         : 'px-3.5 py-2 rounded-xl transition bg-slate-700/60 text-slate-300 hover:bg-slate-700 whitespace-nowrap active:scale-95';
                 }
             });
 
             document.querySelectorAll('.md\\:hidden button').forEach(b => b.classList.remove('text-indigo-400'));
-            const mBtn = document.getElementById(`m-btn-${tab}`);
+            const mBtn = $(`m-btn-${tab}`);
             if (mBtn) mBtn.classList.add('text-indigo-400');
 
             if (tab === 'case_adopt') {
+                renderCaseTape('adopt'); renderCaseShowcase('adopt');
                 loadCaseData('adopt');
                 loadUserSpins('adopt');
             } else if (tab === 'case_mm2') {
+                renderCaseTape('mm2'); renderCaseShowcase('mm2');
                 loadCaseData('mm2');
                 loadUserSpins('mm2');
             } else if (tab === 'inventory') {
@@ -1224,26 +1724,16 @@
             } else if (tab === 'reviews') {
                 loadReviews();
             } else if (tab === 'admin' && isAdmin) {
-                loadAdminCasesLogs();
-                loadRegisteredUsers();
+                applyAdminPermissions();
             }
         }
 
-        window.onFirebaseLoaded = function() {
-            verifyAdminSession();
-            loadSiteStatus();
-            loadProducts();
-            loadCaseData('adopt');
-            loadCaseData('mm2');
-            loadUserSpins('adopt');
-            loadUserSpins('mm2');
-            loadChatMessages();
-            loadChatStats();
-            loadRegisteredUsers();
-        };
-
+        /* =====================================================
+           ТОВАРЫ
+        ===================================================== */
         function loadProducts() {
-            if (!window.firebaseReady) return;
+            if (!window.firebaseReady || started.products) return;
+            started.products = true;
             const { ref, onValue } = window.fb;
             onValue(ref(window.rtdb, 'products'), (snapshot) => {
                 allProductsCache = [];
@@ -1253,8 +1743,10 @@
                         allProductsCache.push({ id: key, ...data[key] });
                     });
                 }
+                productsLoaded = true;
+                saveProductsCache();
                 renderProductsGrid();
-                loadUserInventory();
+                if (currentTab === 'inventory') loadUserInventory();
             });
         }
 
@@ -1268,43 +1760,71 @@
             }
             localStorage.setItem('roblox_favorites', JSON.stringify(userFavorites));
             renderProductsGrid();
-            loadUserInventory();
+            if (currentTab === 'inventory') loadUserInventory();
+        }
+
+        function canEditProduct(item) {
+            if (!isAdmin || !currentUser) return false;
+            if (isOwnerUser()) return true;
+            return adminKey(item.sellerTg || 'TOPTTL') === adminKey(currentUser.tgUsername);
         }
 
         function renderProductsGrid() {
-            const grid = document.getElementById('items-grid');
-            const emptyState = document.getElementById('empty-shop-state');
-            const countBadge = document.getElementById('items-count');
-            const searchVal = (document.getElementById('shop-search')?.value || '').toLowerCase().trim();
-            const selectedType = document.getElementById('shop-type-filter')?.value || 'all';
-            
-            grid.innerHTML = '';
-            let count = 0;
+            const grid = $('items-grid');
+            const emptyState = $('empty-shop-state');
+            const countBadge = $('items-count');
+            if (!grid) return;
+
+            // Пока товары не загрузились и кеша нет — показываем «скелетоны»
+            if (!productsLoaded && allProductsCache.length === 0) {
+                grid.innerHTML = Array(8).fill('<div class="h-56 rounded-xl bg-slate-800 border border-slate-700 animate-pulse"></div>').join('');
+                emptyState.classList.add('hidden');
+                countBadge.innerText = '…';
+                return;
+            }
+
+            const searchVal = ($('shop-search')?.value || '').toLowerCase().trim();
+            const selectedType = $('shop-type-filter')?.value || 'all';
+            const selectedCur = $('shop-currency-filter')?.value || 'all';
+            const owner = isOwnerUser();
 
             const sortedProducts = [...allProductsCache].sort((a, b) => {
                 if (a.isTrending && !b.isTrending) return -1;
                 if (!a.isTrending && b.isTrending) return 1;
-
                 const priceA = a.discount > 0 ? Math.round(a.price * (1 - a.discount / 100)) : a.price;
                 const priceB = b.discount > 0 ? Math.round(b.price * (1 - b.discount / 100)) : b.price;
-
                 return priceB - priceA;
             });
 
+            let html = '';
+            let count = 0;
+
             sortedProducts.forEach(item => {
                 const matchesCategory = item.category === currentTab;
-                const matchesSearch = item.title.toLowerCase().includes(searchVal);
+                const matchesSearch = String(item.title || '').toLowerCase().includes(searchVal);
                 const matchesType = (selectedType === 'all') || (item.type === selectedType);
+                const matchesCur = (selectedCur === 'all') || ((item.currency || 'UAH') === selectedCur);
 
-                if (matchesCategory && matchesSearch && matchesType) {
+                if (matchesCategory && matchesSearch && matchesType && matchesCur) {
                     count++;
                     const isFav = userFavorites.includes(item.id);
                     const discount = item.discount || 0;
                     const finalPrice = discount > 0 ? Math.round(item.price * (1 - discount / 100)) : item.price;
                     const itemType = item.type || 'Товар';
-                    const sellerTg = (item.sellerTg || 'TOPTTL').replace(/[^A-Za-z0-9_]/g, '');
+                    const sym = curSym(item.currency);
+                    const canEdit = canEditProduct(item);
+                    const seller = String(item.sellerTg || 'TOPTTL').replace(/[^A-Za-z0-9_]/g, '');
 
-                    grid.innerHTML += `
+                    let footer;
+                    if (isAdmin) {
+                        footer = owner
+                            ? `<button onclick="handleDeleteProduct('${item.id}')" class="w-full bg-red-500/20 text-red-400 py-1 rounded text-[10px] font-bold">Удалить</button>`
+                            : `<div class="text-[10px] text-slate-500 text-center">@${esc(seller)}</div>`;
+                    } else {
+                        footer = `<button onclick="handleBuyProduct('${item.id}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1 rounded text-xs shadow-md">Купить</button>`;
+                    }
+
+                    html += `
                         <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-md flex flex-col justify-between p-2.5 relative group">
                             <button onclick="toggleFavoriteShop('${item.id}')" class="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-slate-900/80 text-xs transition active:scale-90 hover:scale-110">
                                 <i class="fa-solid fa-heart ${isFav ? 'text-red-500' : 'text-slate-500'}"></i>
@@ -1316,124 +1836,200 @@
                             </div>
 
                             <div class="h-28 sm:h-32 bg-slate-900 rounded-lg flex items-center justify-center p-1 border border-slate-700/50 mt-1">
-                                <img src="${item.img || 'https://via.placeholder.com/120'}" class="max-h-full max-w-full object-contain">
+                                <img src="${esc(safeImg(item.img))}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=PLACEHOLDER" class="max-h-full max-w-full object-contain">
                             </div>
                             <div class="mt-2 flex flex-col justify-between flex-grow">
                                 <div>
                                     <div class="flex items-center gap-1.5 flex-wrap mb-1">
-                                        <span class="bg-slate-700/80 text-indigo-300 border border-indigo-500/30 text-[9px] font-bold px-1.5 py-0.2 rounded">${itemType}</span>
+                                        <span class="bg-slate-700/80 text-indigo-300 border border-indigo-500/30 text-[9px] font-bold px-1.5 py-0.2 rounded">${esc(itemType)}</span>
                                     </div>
-                                    <h3 class="font-bold text-xs text-slate-100 line-clamp-1">${item.title}</h3>
+                                    <h3 class="font-bold text-xs text-slate-100 line-clamp-1">${esc(item.title)}</h3>
                                     <div class="flex items-center gap-1.5 my-0.5">
-                                        <span class="text-xs sm:text-sm font-extrabold text-emerald-400">${finalPrice} ₴</span>
-                                        ${discount > 0 ? `<span class="text-[10px] text-slate-500 line-through">${item.price} ₴</span>` : ''}
+                                        <span class="text-xs sm:text-sm font-extrabold text-emerald-400">${finalPrice} ${sym}</span>
+                                        ${discount > 0 ? `<span class="text-[10px] text-slate-500 line-through">${item.price} ${sym}</span>` : ''}
+                                        ${canEdit ? `<button onclick="editProductPrice('${item.id}')" title="Изменить цену" class="ml-auto bg-amber-500/20 text-amber-400 border border-amber-500/30 w-6 h-6 rounded-lg text-[10px] flex items-center justify-center active:scale-90"><i class="fa-solid fa-pencil"></i></button>` : ''}
                                     </div>
                                 </div>
                                 <div class="mt-1 pt-1 border-t border-slate-700/40">
-                                    ${isAdmin ? `
-                                        <button onclick="handleDeleteProduct('${item.id}')" class="w-full bg-red-500/20 text-red-400 py-1 rounded text-[10px] font-bold">Удалить</button>
-                                    ` : `
-                                        <button onclick="handleBuyProduct('${item.title.replace(/'/g, "\\'")}', '${sellerTg}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1 rounded text-xs shadow-md">Купить</button>
-                                    `}
+                                    ${footer}
                                 </div>
                             </div>
                         </div>`;
                 }
             });
 
+            grid.innerHTML = html;
             countBadge.innerText = `${count} товаров`;
             emptyState.classList.toggle('hidden', count > 0);
         }
 
+        async function editProductPrice(id) {
+            const item = allProductsCache.find(p => p.id === id);
+            if (!item || !canEditProduct(item)) { alert(t('Нет прав для этого действия.')); return; }
+            const v = prompt(`${t('Новая цена')} (${curSym(item.currency)})`, item.price);
+            if (v === null) return;
+            const price = Math.round(Number(String(v).replace(',', '.')));
+            if (!isFinite(price) || price < 1) { alert(t('Введите корректную цену (число от 1)')); return; }
+            const { ref, set } = window.fb;
+            await set(ref(window.rtdb, `products/${id}/price`), price);
+            alert(t('Цена обновлена!'));
+        }
+
+        /* --- Автоподбор картинки по названию (вики Adopt Me / MM2) --- */
+        const WIKI_API = {
+            adopt: 'https://adoptme.fandom.com/api.php',
+            mm2: 'https://murder-mystery-2.fandom.com/api.php'
+        };
+        const imgCache = {};
+        let autoImgTimer = null;
+
+        async function wikiImage(name, cat) {
+            const base = WIKI_API[cat];
+            const clean = String(name || '').trim();
+            if (!base || !clean) return null;
+            const cacheKey = cat + ':' + clean.toLowerCase();
+            if (cacheKey in imgCache) return imgCache[cacheKey];
+
+            const stripped = clean.replace(/\b(mega neon|neon|mega|nfr|mfr|fr|fly|ride)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+            const queries = [clean];
+            if (stripped && stripped.toLowerCase() !== clean.toLowerCase()) queries.push(stripped);
+
+            for (const q of queries) {
+                try {
+                    const url = `${base}?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=0&gsrlimit=6&prop=pageimages&piprop=thumbnail&pithumbsize=300`;
+                    const r = await fetch(url);
+                    const j = await r.json();
+                    const pages = j.query && j.query.pages ? Object.values(j.query.pages) : [];
+                    pages.sort((a, b) => (a.index || 99) - (b.index || 99));
+                    const exact = pages.find(p => p.thumbnail && String(p.title).toLowerCase() === q.toLowerCase());
+                    const pick = exact || pages.find(p => p.thumbnail);
+                    if (pick) { imgCache[cacheKey] = pick.thumbnail.source; return imgCache[cacheKey]; }
+                } catch (e) { console.warn('Поиск картинки:', e); }
+            }
+            imgCache[cacheKey] = null;
+            return null;
+        }
+
+        function scheduleAutoImage() {
+            clearTimeout(autoImgTimer);
+            autoImgTimer = setTimeout(autoFindProductImage, 700);
+        }
+
+        async function autoFindProductImage() {
+            const name = $('prod-title').value.trim();
+            const cat = $('prod-category').value;
+            const st = $('prod-img-status');
+            const pv = $('prod-img-preview');
+            if (!name) {
+                st.innerText = 'Введите название (например Cat) — картинка подставится сама';
+                pv.src = PLACEHOLDER;
+                return;
+            }
+            st.innerText = 'Ищу картинку…';
+            const url = await wikiImage(name, cat);
+            if (name !== $('prod-title').value.trim()) return; // название уже изменили
+            if (url) { pv.src = url; st.innerText = 'Картинка найдена'; }
+            else { pv.src = PLACEHOLDER; st.innerText = 'Картинка не найдена — загрузите фото'; }
+        }
+
         async function handleSaveProduct(e) {
             e.preventDefault();
-            const title = document.getElementById('prod-title').value.trim();
-            const price = Number(document.getElementById('prod-price').value);
-            const discount = Number(document.getElementById('prod-discount').value) || 0;
-            const isTrending = document.getElementById('prod-trending').checked;
-            const category = document.getElementById('prod-category').value;
-            const type = document.getElementById('prod-type').value;
-            const fileInput = document.getElementById('prod-img');
-            let imgData = 'https://via.placeholder.com/120';
-            if (fileInput.files[0]) imgData = await compressImage(fileInput.files[0]);
+            if (!isAdmin) { alert(t('Нет прав для этого действия.')); return; }
+            if (savingProduct) return;
+            savingProduct = true;
+            try {
+                const title = $('prod-title').value.trim();
+                const price = Number($('prod-price').value);
+                const currency = $('prod-currency').value === 'RUB' ? 'RUB' : 'UAH';
+                const discount = Number($('prod-discount').value) || 0;
+                const isTrending = $('prod-trending').checked;
+                const category = $('prod-category').value;
+                const type = $('prod-type').value;
+                const fileInput = $('prod-img');
 
-            const sellerTg = (currentUser && currentUser.tgUsername) || 'TOPTTL';
+                let imgData = '';
+                if (fileInput.files[0]) imgData = await compressImage(fileInput.files[0], 320, 0.6);
+                else imgData = (await wikiImage(title, category)) || '';
 
-            if (window.firebaseReady) {
-                const { ref, push } = window.fb;
-                await push(ref(window.rtdb, 'products'), { title, price, discount, isTrending, category, type, img: imgData, sellerTg });
-                alert('Товар добавлен в магазин!');
-                document.getElementById('product-form').reset();
-                switchTab(category);
+                const sellerTg = (currentUser && currentUser.tgUsername) || 'TOPTTL';
+
+                if (window.firebaseReady) {
+                    const { ref, push } = window.fb;
+                    await push(ref(window.rtdb, 'products'), { title, price, currency, discount, isTrending, category, type, img: imgData, sellerTg });
+                    alert(t('Товар добавлен в магазин!'));
+                    $('product-form').reset();
+                    $('prod-img-preview').src = PLACEHOLDER;
+                    $('prod-img-status').innerText = 'Введите название (например Cat) — картинка подставится сама';
+                    updateAdminTypeOptions();
+                    switchTab(category);
+                }
+            } finally {
+                savingProduct = false;
             }
         }
 
         async function handleDeleteProduct(id) {
-            if (confirm('Удалить товар?')) {
+            if (!isOwnerUser()) { alert(t('Нет прав для этого действия.')); return; }
+            if (confirm(t('Удалить товар?'))) {
                 const { ref, remove } = window.fb;
                 await remove(ref(window.rtdb, 'products/' + id));
             }
         }
 
+        /* =====================================================
+           КЕЙСЫ
+        ===================================================== */
         function loadCaseData(cat) {
-            if (!window.firebaseReady) {
-                currentCaseItems[cat] = [...defaultCaseItems[cat]];
-                renderCaseTape(cat);
-                renderCaseShowcase(cat);
-                return;
-            }
+            if (!window.firebaseReady) return;
+            if (started['case_' + cat]) return;
+            started['case_' + cat] = true;
             const { ref, onValue } = window.fb;
             onValue(ref(window.rtdb, 'case_' + cat), (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
                     if (data.items && Array.isArray(data.items)) currentCaseItems[cat] = data.items;
                     else currentCaseItems[cat] = [...defaultCaseItems[cat]];
-                    
                     currentCasePrices[cat] = data.price !== undefined ? data.price : 50;
                 } else {
                     currentCaseItems[cat] = [...defaultCaseItems[cat]];
                     currentCasePrices[cat] = 50;
                 }
-                
-                const priceTag = document.getElementById(`case-${cat}-price-tag`);
+
+                const priceTag = $(`case-${cat}-price-tag`);
                 if (priceTag) priceTag.innerText = `${currentCasePrices[cat]} грн / ₴`;
-                
+
                 renderCaseTape(cat);
                 renderCaseShowcase(cat);
             });
         }
 
         function renderCaseTape(cat) {
-            const tape = document.getElementById(`case-${cat}-tape`);
+            const tape = $(`case-${cat}-tape`);
             if (!tape) return;
-            tape.innerHTML = '';
-            let extendedItems = [];
             const items = currentCaseItems[cat] && currentCaseItems[cat].length > 0 ? currentCaseItems[cat] : defaultCaseItems[cat];
+            let html = '';
             for (let i = 0; i < 8; i++) {
-                extendedItems = extendedItems.concat(items);
-            }
-            extendedItems.forEach(item => {
-                tape.innerHTML += `
-                    <div class="flex-shrink-0 w-24 h-28 bg-slate-900 border-2 rounded-xl p-2 flex flex-col items-center justify-between shadow-md rarity-${item.rarity || 'common'}">
-                        <img src="${item.img}" class="w-16 h-14 object-contain filter drop-shadow">
-                        <span class="text-[10px] font-bold text-slate-200 text-center line-clamp-1">${item.name}</span>
+                items.forEach(item => {
+                    html += `
+                    <div class="flex-shrink-0 w-24 h-28 bg-slate-900 border-2 rounded-xl p-2 flex flex-col items-center justify-between shadow-md rarity-${esc(item.rarity || 'common')}">
+                        <img src="${esc(safeImg(item.img))}" onerror="this.onerror=null;this.src=PLACEHOLDER" class="w-16 h-14 object-contain filter drop-shadow">
+                        <span class="text-[10px] font-bold text-slate-200 text-center line-clamp-1">${esc(item.name)}</span>
                     </div>`;
-            });
+                });
+            }
+            tape.innerHTML = html;
         }
 
         function renderCaseShowcase(cat) {
-            const showcase = document.getElementById(`case-${cat}-showcase`);
+            const showcase = $(`case-${cat}-showcase`);
             if (!showcase) return;
-            showcase.innerHTML = '';
             const items = currentCaseItems[cat] && currentCaseItems[cat].length > 0 ? currentCaseItems[cat] : defaultCaseItems[cat];
-            items.forEach(item => {
-                showcase.innerHTML += `
-                    <div class="bg-slate-900/90 border rounded-xl p-2.5 flex flex-col items-center text-center rarity-${item.rarity || 'common'}">
-                        <img src="${item.img}" class="w-14 h-12 object-contain mb-1">
-                        <span class="text-[11px] font-bold text-white line-clamp-1">${item.name}</span>
-                        <span class="text-[10px] text-amber-400 font-semibold mt-0.5">Шанс: ${item.chance || '10%'}</span>
-                    </div>`;
-            });
+            showcase.innerHTML = items.map(item => `
+                    <div class="bg-slate-900/90 border rounded-xl p-2.5 flex flex-col items-center text-center rarity-${esc(item.rarity || 'common')}">
+                        <img src="${esc(safeImg(item.img))}" onerror="this.onerror=null;this.src=PLACEHOLDER" class="w-14 h-12 object-contain mb-1">
+                        <span class="text-[11px] font-bold text-white line-clamp-1">${esc(item.name)}</span>
+                        <span class="text-[10px] text-amber-400 font-semibold mt-0.5">Шанс: ${esc(item.chance || '10%')}</span>
+                    </div>`).join('');
         }
 
         function safeEmailKey(email) { return email.replace(/\./g, '_dot_').replace(/@/g, '_at_'); }
@@ -1441,10 +2037,13 @@
         function loadUserSpins(cat) {
             if (!window.firebaseReady || !currentUser) return;
             const key = safeEmailKey(currentUser.email);
+            const id = 'spins_' + cat + '_' + key;
+            if (started[id]) return;
+            started[id] = true;
             const { ref, onValue } = window.fb;
             onValue(ref(window.rtdb, `user_spins/${key}/${cat}`), (snap) => {
                 const spins = snap.val() || 0;
-                const counter = document.getElementById(`user-spins-${cat}`);
+                const counter = $(`user-spins-${cat}`);
                 if (counter) counter.innerText = `${spins} спинов`;
             });
         }
@@ -1457,7 +2056,7 @@
 
             let totalWeight = parsedItems.reduce((sum, item) => sum + item.weight, 0);
             let randomNum = Math.random() * totalWeight;
-            
+
             for (let i = 0; i < parsedItems.length; i++) {
                 if (randomNum < parsedItems[i].weight) {
                     return { item: parsedItems[i], index: i };
@@ -1470,10 +2069,11 @@
         async function startCaseOpening(cat) {
             if (isSpinningCase) return;
             if (!currentUser) {
-                alert('Сначала зарегистрируйтесь!');
-                document.getElementById('auth-modal').classList.remove('hidden');
+                alert(t('Сначала зарегистрируйтесь!'));
+                $('auth-modal').classList.remove('hidden');
                 return;
             }
+            if (!window.firebaseReady) { alert(t('Нет связи с базой. Попробуйте позже.')); return; }
 
             const key = safeEmailKey(currentUser.email);
             const { ref, get, set, push } = window.fb;
@@ -1482,24 +2082,23 @@
             const currentSpins = snap.val() || 0;
 
             if (currentSpins <= 0) {
-                alert(`⛔ У вас нет оплаченных попыток!\nЦена открытия: ${currentCasePrices[cat]} грн.\nНапишите в Telegram админу: @TOPTTL для оплаты и получения спинов.`);
+                alert(`⛔ ${t('У вас нет оплаченных попыток!')}\n${t('Цена открытия:')} ${currentCasePrices[cat]} ${t('грн')}.\n${t('Напишите в Telegram админу: @TOPTTL для оплаты и получения спинов.')}`);
                 return;
             }
 
             await set(spinsRef, currentSpins - 1);
-            loadUserSpins(cat);
 
             isSpinningCase = true;
-            const btn = document.getElementById(`btn-open-case-${cat}`);
+            const btn = $(`btn-open-case-${cat}`);
             if (btn) btn.disabled = true;
 
-            const tape = document.getElementById(`case-${cat}-tape`);
+            const tape = $(`case-${cat}-tape`);
             tape.style.transition = 'none';
             tape.style.transform = 'translateX(0px)';
             tape.offsetHeight;
 
             const itemsList = currentCaseItems[cat] && currentCaseItems[cat].length > 0 ? currentCaseItems[cat] : defaultCaseItems[cat];
-            
+
             const result = getRandomItemByChance(itemsList);
             const wonItem = result.item;
             const winningIndex = result.index;
@@ -1534,10 +2133,7 @@
                     time: new Date().toLocaleTimeString()
                 });
 
-                alert(`🎉 ПОЗДРАВЛЯЕМ!\nВы выиграли предмет: ${wonItem.name} (${wonItem.rarity.toUpperCase()})!\nПредмет добавлен в ваш инвентарь.`);
-                
-                loadUserInventory();
-                if (isAdmin) loadAdminCasesLogs();
+                alert(`🎉 ${t('ПОЗДРАВЛЯЕМ!')}\n${t('Вы выиграли предмет:')} ${wonItem.name} (${String(wonItem.rarity).toUpperCase()})!\n${t('Предмет добавлен в ваш инвентарь.')}`);
             }, 2600);
         }
 
@@ -1559,15 +2155,18 @@
                     i++;
                     if (i > 30) clearInterval(interval);
                 }, 75);
-            } catch(e) {}
+            } catch (e) {}
         }
 
+        /* =====================================================
+           ИНВЕНТАРЬ
+        ===================================================== */
         function setInventoryFilter(filter) {
             currentInventoryFilter = filter;
-            
-            const btnAll = document.getElementById('inv-filter-all');
-            const btnFav = document.getElementById('inv-filter-fav');
-            
+
+            const btnAll = $('inv-filter-all');
+            const btnFav = $('inv-filter-fav');
+
             if (filter === 'all') {
                 btnAll.className = 'flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow';
                 btnFav.className = 'flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition bg-slate-700/60 text-slate-300 hover:bg-slate-700 flex items-center justify-center gap-1.5';
@@ -1575,81 +2174,69 @@
                 btnFav.className = 'flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition bg-amber-500 text-slate-950 shadow flex items-center justify-center gap-1.5';
                 btnAll.className = 'flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-bold transition bg-slate-700/60 text-slate-300 hover:bg-slate-700';
             }
-            
+
             loadUserInventory();
         }
 
         function loadUserInventory() {
-            if (!currentUser) return;
-            const grid = document.getElementById('inventory-grid');
-            const emptyState = document.getElementById('empty-inventory-state');
-            const emptyText = document.getElementById('empty-inv-text');
-            const favBadge = document.getElementById('fav-count-badge');
-            
+            if (!currentUser || !window.firebaseReady) return;
+            const grid = $('inventory-grid');
+            const emptyState = $('empty-inventory-state');
+            const emptyText = $('empty-inv-text');
+            const favBadge = $('fav-count-badge');
             if (!grid) return;
-            grid.innerHTML = '';
-            
-            let totalFavCount = userFavorites.length;
 
-            if (window.firebaseReady) {
-                const key = safeEmailKey(currentUser.email);
-                const { ref, onValue } = window.fb;
-                onValue(ref(window.rtdb, `user_inventory/${key}`), (snap) => {
-                    grid.innerHTML = '';
-                    let dbItems = [];
-                    const data = snap.val();
-                    if (data) {
-                        Object.keys(data).forEach(id => {
-                            dbItems.push({ id, ...data[id], isDBItem: true });
-                            if (data[id].isFav) totalFavCount++;
-                        });
-                    }
-
-                    allProductsCache.forEach(prod => {
-                        if (userFavorites.includes(prod.id)) {
-                            dbItems.push({
-                                id: prod.id,
-                                name: prod.title,
-                                img: prod.img,
-                                rarity: 'legendary',
-                                isFav: true,
-                                isShopFav: true
-                            });
-                        }
+            const key = safeEmailKey(currentUser.email);
+            const { ref, onValue } = window.fb;
+            onValue(ref(window.rtdb, `user_inventory/${key}`), (snap) => {
+                let totalFavCount = userFavorites.length;
+                let dbItems = [];
+                const data = snap.val();
+                if (data) {
+                    Object.keys(data).forEach(id => {
+                        dbItems.push({ id, ...data[id], isDBItem: true });
+                        if (data[id].isFav) totalFavCount++;
                     });
+                }
 
-                    if (favBadge) favBadge.innerText = totalFavCount;
-
-                    let count = 0;
-                    dbItems.forEach(item => {
-                        if (currentInventoryFilter === 'all' || (currentInventoryFilter === 'fav' && item.isFav)) {
-                            count++;
-                            grid.innerHTML += `
-                                <div class="bg-slate-800 border rounded-xl p-3 flex flex-col justify-between items-center text-center shadow-lg relative rarity-${item.rarity || 'common'}">
-                                    <button onclick="${item.isShopFav ? `toggleFavoriteShop('${item.id}')` : `toggleFavInventoryItem('${item.id}',${!item.isFav})`}" class="absolute top-2 right-2 text-xs p-1 rounded-full bg-slate-900/60">
-                                        <i class="fa-solid fa-star text-amber-400"></i>
-                                    </button>
-                                    <img src="${item.img}" class="w-20 h-16 object-contain my-2 filter drop-shadow">
-                                    <span class="font-bold text-xs text-white line-clamp-1">${item.name}</span>
-                                    <span class="text-[9px] text-slate-400 mt-1 uppercase font-semibold">${item.isShopFav ? 'Из магазина' : (item.rarity || 'common')}</span>
-                                    ${item.isShopFav ? `
-                                        <button onclick="toggleFavoriteShop('${item.id}')" class="w-full mt-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 py-1 rounded text-[10px] font-bold">Из избранного</button>
-                                    ` : `
-                                        <button onclick="removeInventoryItem('${item.id}')" class="w-full mt-2 bg-slate-700 hover:bg-slate-600 text-slate-300 py-1 rounded text-[10px] font-bold">Убрать</button>
-                                    `}
-                                </div>`;
-                        }
-                    });
-
-                    if (currentInventoryFilter === 'fav' && count === 0) {
-                        emptyText.innerText = "У вас нет предметов в избранном. Нажмите ❤️ в магазине или ⭐ в инвентаре, чтобы добавить их сюда!";
-                    } else {
-                        emptyText.innerText = "Ваш инвентарь пуст. Ожидайте выдачи товара администратором или откройте кейсы!";
+                allProductsCache.forEach(prod => {
+                    if (userFavorites.includes(prod.id)) {
+                        dbItems.push({ id: prod.id, name: prod.title, img: prod.img, rarity: 'legendary', isFav: true, isShopFav: true });
                     }
+                });
 
-                    emptyState.classList.toggle('hidden', count > 0);
-                }, { onlyOnce: true });
-            }
+                if (favBadge) favBadge.innerText = totalFavCount;
+
+                let count = 0;
+                let html = '';
+                dbItems.forEach(item => {
+                    if (currentInventoryFilter === 'all' || (currentInventoryFilter === 'fav' && item.isFav)) {
+                        count++;
+                        html += `
+                            <div class="bg-slate-800 border rounded-xl p-3 flex flex-col justify-between items-center text-center shadow-lg relative rarity-${esc(item.rarity || 'common')}">
+                                <button onclick="${item.isShopFav ? `toggleFavoriteShop('${item.id}')` : `toggleFavInventoryItem('${item.id}',${!item.isFav})`}" class="absolute top-2 right-2 text-xs p-1 rounded-full bg-slate-900/60">
+                                    <i class="fa-solid fa-star text-amber-400"></i>
+                                </button>
+                                <img src="${esc(safeImg(item.img))}" loading="lazy" onerror="this.onerror=null;this.src=PLACEHOLDER" class="w-20 h-16 object-contain my-2 filter drop-shadow">
+                                <span class="font-bold text-xs text-white line-clamp-1">${esc(item.name)}</span>
+                                <span class="text-[9px] text-slate-400 mt-1 uppercase font-semibold">${item.isShopFav ? 'Из магазина' : esc(item.rarity || 'common')}</span>
+                                ${item.isShopFav ? `
+                                    <button onclick="toggleFavoriteShop('${item.id}')" class="w-full mt-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 py-1 rounded text-[10px] font-bold">Из избранного</button>
+                                ` : `
+                                    <button onclick="removeInventoryItem('${item.id}')" class="w-full mt-2 bg-slate-700 hover:bg-slate-600 text-slate-300 py-1 rounded text-[10px] font-bold">Убрать</button>
+                                `}
+                            </div>`;
+                    }
+                });
+                grid.innerHTML = html;
+
+                if (currentInventoryFilter === 'fav' && count === 0) {
+                    emptyText.innerText = 'У вас нет предметов в избранном. Нажмите ❤️ в магазине или ⭐ в инвентаре, чтобы добавить их сюда!';
+                } else {
+                    emptyText.innerText = 'Ваш инвентарь пуст. Ожидайте выдачи товара администратором или откройте кейсы!';
+                }
+                emptyState.classList.toggle('hidden', count > 0);
+            }, { onlyOnce: true });
         }
 
         async function toggleFavInventoryItem(id, status) {
@@ -1661,7 +2248,7 @@
         }
 
         async function removeInventoryItem(id) {
-            if (confirm('Убрать предмет из инвентаря?')) {
+            if (confirm(t('Убрать предмет из инвентаря?'))) {
                 const key = safeEmailKey(currentUser.email);
                 const { ref, remove } = window.fb;
                 await remove(ref(window.rtdb, `user_inventory/${key}/${id}`));
@@ -1671,17 +2258,20 @@
 
         async function handleGiveItemToUser(e) {
             e.preventDefault();
-            const email = document.getElementById('give-item-email').value.trim().toLowerCase();
-            const name = document.getElementById('give-item-name').value.trim();
-            const rarity = document.getElementById('give-item-rarity').value;
-            const fileInput = document.getElementById('give-item-file');
-            const urlInput = document.getElementById('give-item-url').value.trim();
+            if (!isOwnerUser()) { alert(t('Нет прав для этого действия.')); return; }
+            const email = $('give-item-email').value.trim().toLowerCase();
+            const name = $('give-item-name').value.trim();
+            const rarity = $('give-item-rarity').value;
+            const fileInput = $('give-item-file');
+            const urlInput = $('give-item-url').value.trim();
 
-            let imgData = 'https://via.placeholder.com/120';
+            let imgData = '';
             if (fileInput.files[0]) {
-                imgData = await compressImage(fileInput.files[0]);
+                imgData = await compressImage(fileInput.files[0], 320, 0.6);
             } else if (urlInput) {
                 imgData = urlInput;
+            } else {
+                imgData = (await wikiImage(name, 'adopt')) || (await wikiImage(name, 'mm2')) || '';
             }
 
             if (window.firebaseReady) {
@@ -1690,85 +2280,85 @@
                 await push(ref(window.rtdb, `user_inventory/${key}`), {
                     name, rarity, img: imgData, isFav: false, wonAt: new Date().toLocaleString()
                 });
-                alert(`Успешно! Предмет "${name}" выдан игроку ${email} в инвентарь.`);
-                document.getElementById('give-item-email').value = '';
-                document.getElementById('give-item-name').value = '';
-                document.getElementById('give-item-url').value = '';
-                document.getElementById('give-item-file').value = '';
+                alert(`${t('Успешно!')} ${t('Предмет')} "${name}" ${t('выдан игроку')} ${email}.`);
+                $('give-item-email').value = '';
+                $('give-item-name').value = '';
+                $('give-item-url').value = '';
+                $('give-item-file').value = '';
             }
         }
 
+        /* =====================================================
+           АДМИН: НАСТРОЙКА КЕЙСОВ
+        ===================================================== */
         function loadAdminCaseInputs() {
-            const cat = document.getElementById('admin-case-cat').value;
-            
+            const cat = $('admin-case-cat').value;
+
             if (window.firebaseReady) {
                 const { ref, get } = window.fb;
                 get(ref(window.rtdb, 'case_' + cat)).then(snap => {
                     const val = snap.val();
                     const price = (val && val.price !== undefined) ? val.price : 50;
-                    document.getElementById('admin-case-price').value = price;
-                    
+                    $('admin-case-price').value = price;
+
                     if (val && val.items && Array.isArray(val.items)) {
                         currentCaseItems[cat] = val.items;
                     }
                     renderAdminCaseItemsList();
                 });
             } else {
-                document.getElementById('admin-case-price').value = currentCasePrices[cat];
+                $('admin-case-price').value = currentCasePrices[cat];
                 renderAdminCaseItemsList();
             }
         }
 
         function renderAdminCaseItemsList() {
-            const cat = document.getElementById('admin-case-cat').value;
-            const container = document.getElementById('admin-case-items-list');
+            const cat = $('admin-case-cat').value;
+            const container = $('admin-case-items-list');
             if (!container) return;
-            container.innerHTML = '';
-            
+
             const items = currentCaseItems[cat] || defaultCaseItems[cat];
 
-            items.forEach((item, idx) => {
-                container.innerHTML += `
+            container.innerHTML = items.map((item, idx) => `
                     <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 space-y-2 relative group">
                         <div class="flex justify-between items-center">
                             <span class="text-xs font-bold text-amber-400">Предмет #${idx + 1}</span>
                             <div class="flex items-center gap-2">
                                 <select id="adm-item-rarity-${idx}" class="text-xs bg-slate-800 text-white p-1 rounded border border-slate-700">
-                                    <option value="common" ${item.rarity==='common'?'selected':''}>Common</option>
-                                    <option value="rare" ${item.rarity==='rare'?'selected':''}>Rare</option>
-                                    <option value="epic" ${item.rarity==='epic'?'selected':''}>Epic</option>
-                                    <option value="legendary" ${item.rarity==='legendary'?'selected':''}>Legendary</option>
-                                    <option value="godly" ${item.rarity==='godly'?'selected':''}>Godly</option>
+                                    <option value="common" ${item.rarity === 'common' ? 'selected' : ''}>Common</option>
+                                    <option value="rare" ${item.rarity === 'rare' ? 'selected' : ''}>Rare</option>
+                                    <option value="epic" ${item.rarity === 'epic' ? 'selected' : ''}>Epic</option>
+                                    <option value="legendary" ${item.rarity === 'legendary' ? 'selected' : ''}>Legendary</option>
+                                    <option value="godly" ${item.rarity === 'godly' ? 'selected' : ''}>Godly</option>
                                 </select>
                                 <button type="button" onclick="removeAdminCaseItemRow(${idx})" class="text-red-400 hover:text-red-300 p-1 text-xs" title="Удалить предмет из кейса"><i class="fa-solid fa-trash"></i></button>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
-                            <input type="text" id="adm-item-name-${idx}" value="${item.name || ''}" placeholder="Название" class="p-2 rounded bg-slate-800 text-white text-xs border border-slate-700">
-                            <input type="text" id="adm-item-chance-${idx}" value="${item.chance || '10%'}" placeholder="Шанс (напр. 10%)" class="p-2 rounded bg-slate-800 text-white text-xs border border-slate-700">
+                            <input type="text" id="adm-item-name-${idx}" value="${esc(item.name || '')}" placeholder="Название" class="p-2 rounded bg-slate-800 text-white text-xs border border-slate-700">
+                            <input type="text" id="adm-item-chance-${idx}" value="${esc(item.chance || '10%')}" placeholder="Шанс (напр. 10%)" class="p-2 rounded bg-slate-800 text-white text-xs border border-slate-700">
                         </div>
                         <div class="space-y-1">
-                            <input type="text" id="adm-item-img-${idx}" value="${item.img || ''}" placeholder="Ссылка на фото (URL)" class="w-full p-2 rounded bg-slate-800 text-white text-xs border border-slate-700 mb-1">
+                            <input type="text" id="adm-item-img-${idx}" value="${esc(String(item.img || '').startsWith('data:image/svg') ? '' : (item.img || ''))}" placeholder="Ссылка на фото (URL)" class="w-full p-2 rounded bg-slate-800 text-white text-xs border border-slate-700 mb-1">
                             <input type="file" id="adm-item-file-${idx}" accept="image/*" class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:bg-amber-500 file:text-slate-950 cursor-pointer">
                         </div>
-                    </div>`;
-            });
+                    </div>`).join('');
         }
 
         function addAdminCaseItemRow() {
-            const cat = document.getElementById('admin-case-cat').value;
+            const cat = $('admin-case-cat').value;
             if (!currentCaseItems[cat]) currentCaseItems[cat] = [];
             currentCaseItems[cat].push({
                 name: "Новый Предмет",
                 rarity: "common",
                 chance: "10%",
-                img: "https://via.placeholder.com/120"
+                img: PLACEHOLDER
             });
             renderAdminCaseItemsList();
         }
 
         function removeAdminCaseItemRow(idx) {
-            const cat = document.getElementById('admin-case-cat').value;
+            const cat = $('admin-case-cat').value;
             if (currentCaseItems[cat] && currentCaseItems[cat].length > idx) {
                 currentCaseItems[cat].splice(idx, 1);
                 renderAdminCaseItemsList();
@@ -1776,25 +2366,26 @@
         }
 
         async function saveAdminCaseSettings() {
-            const cat = document.getElementById('admin-case-cat').value;
-            const newPrice = Number(document.getElementById('admin-case-price').value) || 50;
+            if (!isAdmin) { alert(t('Нет прав для этого действия.')); return; }
+            const cat = $('admin-case-cat').value;
+            const newPrice = Number($('admin-case-price').value) || 50;
             const newItems = [];
-            
-            const currentCount = (currentCaseItems[cat] || []).length;
-            
-            for (let i = 0; i < currentCount; i++) {
-                const nameInput = document.getElementById(`adm-item-name-${i}`);
-                if (!nameInput) continue;
-                
-                const name = nameInput.value.trim() || `Предмет ${i+1}`;
-                const rarity = document.getElementById(`adm-item-rarity-${i}`).value;
-                const chance = document.getElementById(`adm-item-chance-${i}`).value.trim() || '10%';
-                const urlImg = document.getElementById(`adm-item-img-${i}`).value.trim();
-                const fileInput = document.getElementById(`adm-item-file-${i}`);
 
-                let img = urlImg || 'https://via.placeholder.com/120';
+            const currentCount = (currentCaseItems[cat] || []).length;
+
+            for (let i = 0; i < currentCount; i++) {
+                const nameInput = $(`adm-item-name-${i}`);
+                if (!nameInput) continue;
+
+                const name = nameInput.value.trim() || `Предмет ${i + 1}`;
+                const rarity = $(`adm-item-rarity-${i}`).value;
+                const chance = $(`adm-item-chance-${i}`).value.trim() || '10%';
+                const urlImg = $(`adm-item-img-${i}`).value.trim();
+                const fileInput = $(`adm-item-file-${i}`);
+
+                let img = urlImg || PLACEHOLDER;
                 if (fileInput && fileInput.files[0]) {
-                    img = await compressImage(fileInput.files[0]);
+                    img = await compressImage(fileInput.files[0], 320, 0.6);
                 }
 
                 newItems.push({ name, rarity, chance, img });
@@ -1803,16 +2394,16 @@
             if (window.firebaseReady) {
                 const { ref, set } = window.fb;
                 await set(ref(window.rtdb, 'case_' + cat), { price: newPrice, items: newItems });
-                alert('Цена и настройки кейса успешно сохранены!');
-                loadCaseData(cat);
+                alert(t('Цена и настройки кейса успешно сохранены!'));
             }
         }
 
         async function handleGiveSpinToUser(e) {
             e.preventDefault();
-            const email = document.getElementById('grant-email').value.trim().toLowerCase();
-            const category = document.getElementById('grant-category').value;
-            const count = Number(document.getElementById('grant-count').value) || 1;
+            if (!isOwnerUser()) { alert(t('Нет прав для этого действия.')); return; }
+            const email = $('grant-email').value.trim().toLowerCase();
+            const category = $('grant-category').value;
+            const count = Number($('grant-count').value) || 1;
 
             if (window.firebaseReady) {
                 const key = safeEmailKey(email);
@@ -1820,45 +2411,43 @@
                 const snap = await get(ref(window.rtdb, `user_spins/${key}/${category}`));
                 const current = snap.val() || 0;
                 await set(ref(window.rtdb, `user_spins/${key}/${category}`), current + count);
-                alert(`Успешно выдано ${count} прокрутов для ${email}!`);
-                document.getElementById('grant-email').value = '';
+                alert(`${t('Успешно выдано прокрутов:')} ${count} → ${email}`);
+                $('grant-email').value = '';
             }
         }
 
         function loadAdminCasesLogs() {
-            if (!window.firebaseReady) return;
+            if (!window.firebaseReady || !isOwnerUser() || started.logs) return;
+            started.logs = true;
             const { ref, onValue } = window.fb;
             onValue(ref(window.rtdb, 'cases_logs'), (snap) => {
-                const container = document.getElementById('admin-cases-logs');
-                container.innerHTML = '';
+                const container = $('admin-cases-logs');
                 const data = snap.val();
                 if (!data) {
                     container.innerHTML = `<p class="text-xs text-slate-500 text-center py-2">История пуста</p>`;
                     return;
                 }
-                Object.values(data).reverse().forEach(log => {
-                    container.innerHTML += `
+                container.innerHTML = Object.values(data).reverse().map(log => `
                         <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-xs flex justify-between items-center">
                             <div>
-                                <span class="font-bold text-indigo-300">${log.username}</span> (${log.email})
-                                <span class="text-slate-400 block text-[10px]">Кейс: ${log.caseType} | Выпало: <strong class="text-amber-400">${log.itemName}</strong></span>
+                                <span class="font-bold text-indigo-300">${esc(log.username)}</span> (${esc(log.email)})
+                                <span class="text-slate-400 block text-[10px]">Кейс: ${esc(log.caseType)} | Выпало: <strong class="text-amber-400">${esc(log.itemName)}</strong></span>
                             </div>
-                            <span class="text-[10px] text-slate-500">${log.time}</span>
-                        </div>`;
-                });
+                            <span class="text-[10px] text-slate-500">${esc(log.time)}</span>
+                        </div>`).join('');
             });
         }
 
-        /* --- ЗАРЕГИСТРИРОВАННЫЕ ПОЛЬЗОВАТЕЛИ В АДМИН ПАНЕЛИ --- */
+        /* --- Зарегистрированные пользователи (только создатель) --- */
         function loadRegisteredUsers() {
-            if (!window.firebaseReady) return;
+            if (!window.firebaseReady || !isOwnerUser() || started.users) return;
+            started.users = true;
             const { ref, onValue } = window.fb;
             onValue(ref(window.rtdb, 'registered_users'), (snap) => {
-                const container = document.getElementById('admin-registered-users-list');
-                const badge = document.getElementById('registered-users-count');
+                const container = $('admin-registered-users-list');
+                const badge = $('registered-users-count');
                 if (!container) return;
-                
-                container.innerHTML = '';
+
                 const data = snap.val();
                 if (!data) {
                     if (badge) badge.innerText = '0 пользователей';
@@ -1870,38 +2459,35 @@
                 if (badge) badge.innerText = `${usersList.length} пользователей`;
 
                 const now = Date.now();
-
-                usersList.reverse().forEach(usr => {
+                container.innerHTML = usersList.reverse().map(usr => {
                     let regDateStr = 'Неизвестно';
-                    let daysOnSiteStr = '0 дней (Сегодня)';
+                    let daysOnSiteStr = 'На сайте: 0 дней (Сегодня)';
 
                     if (usr.registeredAt) {
                         const dateObj = new Date(usr.registeredAt);
-                        regDateStr = dateObj.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                        
-                        const diffMs = now - usr.registeredAt;
-                        const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                        daysOnSiteStr = days === 0 ? '0 дней (Сегодня)' : `${days} дн.`;
+                        regDateStr = dateObj.toLocaleDateString(LOC[lang] || 'ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        const days = Math.floor((now - usr.registeredAt) / (1000 * 60 * 60 * 24));
+                        daysOnSiteStr = days === 0 ? 'На сайте: 0 дней (Сегодня)' : `На сайте: ${days} дн.`;
                     }
 
-                    container.innerHTML += `
+                    return `
                         <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 text-xs flex justify-between items-center gap-2">
                             <div class="space-y-0.5">
                                 <div class="flex items-center gap-2">
-                                    <span class="font-bold text-white text-sm">${usr.username}</span>
-                                    <span class="text-[10px] bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/20">${usr.email}</span>
+                                    <span class="font-bold text-white text-sm">${esc(usr.username)}</span>
+                                    <span class="text-[10px] bg-slate-800 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/20">${esc(usr.email)}</span>
                                 </div>
                                 <div class="text-[10px] text-slate-400">
-                                    Дата регистрации: <span class="text-slate-300 font-medium">${regDateStr}</span>
+                                    <span>Дата регистрации:</span> <span class="text-slate-300 font-medium">${esc(regDateStr)}</span>
                                 </div>
                             </div>
                             <div class="text-right">
                                 <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2 py-1 rounded-lg inline-block">
-                                    <i class="fa-solid fa-calendar-day me-1"></i>На сайте: ${daysOnSiteStr}
+                                    <i class="fa-solid fa-calendar-day me-1"></i>${daysOnSiteStr}
                                 </span>
                             </div>
                         </div>`;
-                });
+                }).join('');
             });
         }
 
@@ -1924,71 +2510,83 @@
             });
         }
 
+        /* =====================================================
+           ОТЗЫВЫ
+        ===================================================== */
         function loadReviews() {
-            if (!window.firebaseReady) return;
+            if (!window.firebaseReady || started.reviews) return;
+            started.reviews = true;
             const { ref, onValue } = window.fb;
             onValue(ref(window.rtdb, 'reviews'), (snap) => {
-                const list = document.getElementById('reviews-list');
-                list.innerHTML = '';
+                const list = $('reviews-list');
                 const data = snap.val();
                 if (!data) { list.innerHTML = `<p class="text-slate-500 text-xs text-center">Отзывов пока нет.</p>`; return; }
-                
-                Object.keys(data).reverse().forEach(k => {
+
+                list.innerHTML = Object.keys(data).reverse().map(k => {
                     const rev = data[k];
-                    list.innerHTML += `
+                    const stars = Math.max(0, Math.min(5, Number(rev.rating) || 0));
+                    return `
                         <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 space-y-1 relative group">
                             <div class="flex justify-between items-center">
                                 <div class="flex items-center gap-2">
-                                    <span class="font-bold text-xs text-slate-200">${rev.author}</span>
-                                    <span class="text-[10px] text-slate-500">(${rev.email || 'Email не указан'})</span>
+                                    <span class="font-bold text-xs text-slate-200">${esc(rev.author)}</span>
+                                    <span class="text-[10px] text-slate-500">(${rev.email ? esc(rev.email) : '<span>Email не указан</span>'})</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-amber-400 text-xs">${'⭐'.repeat(rev.rating)}</span>
-                                    ${isAdmin ? `<button onclick="handleDeleteReview('${k}')" class="text-red-400 hover:text-red-300 text-xs ml-2" title="Удалить отзыв"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                    <span class="text-amber-400 text-xs">${'⭐'.repeat(stars)}</span>
+                                    ${isOwnerUser() ? `<button onclick="handleDeleteReview('${k}')" class="text-red-400 hover:text-red-300 text-xs ml-2" title="Удалить отзыв"><i class="fa-solid fa-trash"></i></button>` : ''}
                                 </div>
                             </div>
-                            <p class="text-slate-300 text-xs">${rev.text}</p>
+                            <p class="text-slate-300 text-xs">${esc(rev.text)}</p>
                         </div>`;
-                });
+                }).join('');
             });
         }
 
         async function handleSaveReview(e) {
             e.preventDefault();
-            const author = document.getElementById('rev-author').value.trim();
-            const email = document.getElementById('rev-email').value;
-            const rating = document.getElementById('rev-rating').value;
-            const text = document.getElementById('rev-text').value.trim();
+            const author = $('rev-author').value.trim();
+            const email = $('rev-email').value;
+            const rating = $('rev-rating').value;
+            const text = $('rev-text').value.trim();
 
             if (window.firebaseReady) {
                 const { ref, push } = window.fb;
                 await push(ref(window.rtdb, 'reviews'), { author, email, rating, text, createdAt: Date.now() });
-                alert('Отзыв опубликован!');
-                document.getElementById('rev-text').value = '';
+                alert(t('Отзыв опубликован!'));
+                $('rev-text').value = '';
             }
         }
 
         async function handleDeleteReview(reviewId) {
-            if (confirm('Удалить этот отзыв?')) {
+            if (!isOwnerUser()) { alert(t('Нет прав для этого действия.')); return; }
+            if (confirm(t('Удалить этот отзыв?'))) {
                 const { ref, remove } = window.fb;
                 await remove(ref(window.rtdb, 'reviews/' + reviewId));
             }
         }
 
+        /* =====================================================
+           ЧАТ (загружается только когда его открывают)
+        ===================================================== */
         function loadChatMessages() {
-            if (!window.firebaseReady) return;
+            if (!window.firebaseReady || started.chat) return;
+            started.chat = true;
             const { ref, onValue } = window.fb;
             onValue(ref(window.rtdb, 'chat_messages'), (snap) => {
-                const container = document.getElementById('chat-messages');
-                container.innerHTML = '';
+                const container = $('chat-messages');
                 const data = snap.val();
                 if (!data) {
                     container.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">Сообщений в чате пока нет. Напишите первым!</p>`;
                     return;
                 }
-                Object.values(data).forEach(msg => {
-                    const avatarContent = msg.avatar ? `<img src="${msg.avatar}" class="w-full h-full object-cover">` : msg.username.charAt(0).toUpperCase();
-                    container.innerHTML += `
+                container.innerHTML = Object.values(data).map(msg => {
+                    const uname = String(msg.username || '?');
+                    const avatarContent = msg.avatar ? `<img src="${esc(msg.avatar)}" class="w-full h-full object-cover">` : esc(uname.charAt(0).toUpperCase());
+                    let badge = '';
+                    if (msg.role === 'owner') badge = `<span class="bg-red-500 text-white font-black text-[9px] px-1.5 py-0.2 rounded shadow uppercase tracking-wide">Создатель</span>`;
+                    else if (msg.isAdmin) badge = `<span class="bg-amber-500 text-slate-950 font-black text-[9px] px-1.5 py-0.2 rounded shadow uppercase tracking-wide">Администратор</span>`;
+                    return `
                         <div class="flex items-start gap-2.5">
                             <div class="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 overflow-hidden uppercase">
                                 ${avatarContent}
@@ -1996,37 +2594,38 @@
                             <div class="bg-slate-800 p-2.5 rounded-2xl border border-slate-700/80 max-w-[85%] space-y-0.5">
                                 <div class="flex justify-between items-center gap-3">
                                     <div class="flex items-center gap-1.5">
-                                        <span class="font-bold text-xs text-indigo-300">${msg.username}</span>
-                                        ${msg.isAdmin ? `<span class="bg-amber-500 text-slate-950 font-black text-[9px] px-1.5 py-0.2 rounded shadow uppercase tracking-wide">Администратор</span>` : ''}
+                                        <span class="font-bold text-xs text-indigo-300">${esc(uname)}</span>
+                                        ${badge}
                                     </div>
-                                    <span class="text-[9px] text-slate-500">${msg.time}</span>
+                                    <span class="text-[9px] text-slate-500">${esc(msg.time)}</span>
                                 </div>
-                                <p class="text-xs text-slate-200">${msg.text}</p>
+                                <p class="text-xs text-slate-200">${esc(msg.text)}</p>
                             </div>
                         </div>`;
-                });
+                }).join('');
                 container.scrollTop = container.scrollHeight;
             });
         }
 
         function loadChatStats() {
-            if (!window.firebaseReady) return;
+            if (!window.firebaseReady || started.chatStats) return;
+            started.chatStats = true;
             const { ref, onValue } = window.fb;
             onValue(ref(window.rtdb, 'registered_users'), (snap) => {
                 const data = snap.val() || {};
                 const total = Object.keys(data).length || 1;
-                document.getElementById('chat-total-users').innerText = total;
-                document.getElementById('chat-online-count').innerText = Math.max(1, Math.floor(Math.random() * 5) + 1);
+                $('chat-total-users').innerText = total;
+                $('chat-online-count').innerText = Math.max(1, Math.floor(Math.random() * 5) + 1);
             });
         }
 
         async function handleSendChatMessage(e) {
             e.preventDefault();
             if (!currentUser) {
-                alert('Сначала зарегистрируйтесь!');
+                alert(t('Сначала зарегистрируйтесь!'));
                 return;
             }
-            const input = document.getElementById('chat-input');
+            const input = $('chat-input');
             const text = input.value.trim();
             if (!text) return;
 
@@ -2035,7 +2634,7 @@
                 await push(ref(window.rtdb, 'chat_messages'), {
                     username: currentUser.username,
                     avatar: currentUser.avatar || null,
-                    isAdmin: !!(currentUser.isAdmin && currentUser.showAdminTag),
+                    role: (isOwnerUser() && currentUser.showAdminTag) ? 'owner' : '',
                     text: text,
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 });
@@ -2043,15 +2642,25 @@
             }
         }
 
-        function handleBuyProduct(title, tg) {
-            tg = tg || 'TOPTTL';
-            document.getElementById('modal-product-name').innerText = title;
-            const link = document.getElementById('modal-tg-link');
+        /* =====================================================
+           ПОКУПКА
+        ===================================================== */
+        function handleBuyProduct(id) {
+            const item = allProductsCache.find(p => p.id === id);
+            if (!item) return;
+            const tg = String(item.sellerTg || 'TOPTTL').replace(/[^A-Za-z0-9_]/g, '') || 'TOPTTL';
+            $('modal-product-name').innerText = item.title;
+            const link = $('modal-tg-link');
             link.href = `https://t.me/${tg}`;
             link.innerHTML = `<i class="fa-brands fa-telegram text-base"></i> Написать в Telegram (@${tg})`;
-            document.getElementById('buy-modal').classList.remove('hidden');
+            $('buy-modal').classList.remove('hidden');
         }
-        function closeBuyModal() { document.getElementById('buy-modal').classList.add('hidden'); }
+        function closeBuyModal() { $('buy-modal').classList.add('hidden'); }
+
+        /* =====================================================
+           СТАРТ
+        ===================================================== */
+        initApp();
     </script>
 </body>
 </html>
