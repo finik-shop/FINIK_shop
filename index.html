@@ -858,6 +858,7 @@
             else el.src = nameImg(el.alt);
         }
         function setImgSrc(im, url, alt) {
+            if (!im) return;
             im.alt = alt || '';
             delete im.dataset.step;
             im.dataset.g = '1';
@@ -979,6 +980,7 @@
             '🔥 Закрепить как Трендовый товар': ['🔥 Pin as Trending item', '🔥 Закріпити як трендовий товар'],
             'Фотография': ['Photo', 'Фото'],
             '🔍 Найти картинку по названию': ['🔍 Find image by name', '🔍 Знайти картинку за назвою'],
+            'Найти картинку по названию': ['Find image by name', 'Знайти картинку за назвою'],
             '🔎 Найти картинку в Google': ['🔎 Find image in Google', '🔎 Знайти картинку в Google'],
             'Введите название (например Cat) — картинка подставится сама': ['Type a name (e.g. Cat) — the image will appear automatically', 'Введіть назву (наприклад Cat) — картинка підставиться сама'],
             'Ищу картинку…': ['Searching for an image…', 'Шукаю картинку…'],
@@ -1866,6 +1868,7 @@
             if (currentTab === 'inventory') loadUserInventory();
         }
 
+        // Может ли текущий админ менять/удалять товар: создатель — любой, остальные админы — только свои
         function canEditProduct(item) {
             if (!isAdmin || !currentUser) return false;
             if (isOwnerUser()) return true;
@@ -1889,7 +1892,6 @@
             const searchVal = ($('shop-search')?.value || '').toLowerCase().trim();
             const selectedType = $('shop-type-filter')?.value || 'all';
             const selectedCur = $('shop-currency-filter')?.value || 'all';
-            const owner = isOwnerUser();
 
             const sortedProducts = [...allProductsCache].sort((a, b) => {
                 if (a.isTrending && !b.isTrending) return -1;
@@ -1920,7 +1922,8 @@
 
                     let footer;
                     if (isAdmin) {
-                        footer = owner
+                        // свой товар (или любой — у создателя): можно удалить; чужой — показываем, чей он
+                        footer = canEdit
                             ? `<button onclick="handleDeleteProduct('${item.id}')" class="w-full bg-red-500/20 text-red-400 py-1 rounded text-[10px] font-bold">Удалить</button>`
                             : `<div class="text-[10px] text-slate-500 text-center">@${esc(seller)}</div>`;
                     } else {
@@ -1980,7 +1983,7 @@
         }
 
         /* =====================================================
-           АВТОПОДБОР КАРТИНКИ ПО НАЗВАНИЮ
+           ПОИСК КАРТИНКИ ПО НАЗВАНИЮ (магазин и боксы)
            Источники (по порядку):
            1) уже выложенные товары с таким названием и общая «библиотека картинок» сайта
            2) вики Adopt Me / MM2 (MediaWiki API: fetch + JSONP + прокси)
@@ -2203,6 +2206,7 @@
             return r.main;
         }
 
+        /* --- Магазин: форма товара --- */
         function renderImgCandidates(list) {
             const box = $('prod-img-candidates');
             if (!box) return;
@@ -2318,8 +2322,10 @@
             }
         }
 
+        // Удалить товар: создатель — любой, админ — только тот, что выложил сам
         async function handleDeleteProduct(id) {
-            if (!isOwnerUser()) { alert(t('Нет прав для этого действия.')); return; }
+            const item = allProductsCache.find(p => p.id === id);
+            if (!item || !canEditProduct(item)) { alert(t('Нет прав для этого действия.')); return; }
             if (confirm(t('Удалить товар?'))) {
                 const { ref, remove } = window.fb;
                 await remove(ref(window.rtdb, 'products/' + id));
@@ -2642,8 +2648,10 @@
         }
 
         /* =====================================================
-           АДМИН: НАСТРОЙКА КЕЙСОВ
+           АДМИН: НАСТРОЙКА КЕЙСОВ (с поиском картинки по названию)
         ===================================================== */
+        const caseImgTimers = {};
+
         function loadAdminCaseInputs() {
             const cat = $('admin-case-cat').value;
 
@@ -2672,7 +2680,10 @@
 
             const items = currentCaseItems[cat] || defaultCaseItems[cat];
 
-            container.innerHTML = items.map((item, idx) => `
+            container.innerHTML = items.map((item, idx) => {
+                const rawImg = String(item.img || '');
+                const urlVal = rawImg.startsWith('data:image/svg') ? '' : rawImg;
+                return `
                     <div class="bg-slate-900 p-3 rounded-xl border border-slate-700 space-y-2 relative group">
                         <div class="flex justify-between items-center">
                             <span class="text-xs font-bold text-amber-400">Предмет #${idx + 1}</span>
@@ -2688,19 +2699,53 @@
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
-                            <input type="text" id="adm-item-name-${idx}" value="${esc(item.name || '')}" placeholder="Название" class="p-2 rounded bg-slate-800 text-white text-xs border border-slate-700">
+                            <input type="text" id="adm-item-name-${idx}" value="${esc(item.name || '')}" oninput="scheduleCaseItemImage(${idx})" autocomplete="off" placeholder="Название" class="p-2 rounded bg-slate-800 text-white text-xs border border-slate-700">
                             <input type="text" id="adm-item-chance-${idx}" value="${esc(item.chance || '10%')}" placeholder="Шанс (напр. 10%)" class="p-2 rounded bg-slate-800 text-white text-xs border border-slate-700">
                         </div>
-                        <div class="space-y-1">
-                            <input type="text" id="adm-item-img-${idx}" value="${esc(String(item.img || '').startsWith('data:image/svg') ? '' : (item.img || ''))}" placeholder="Ссылка на фото (URL)" class="w-full p-2 rounded bg-slate-800 text-white text-xs border border-slate-700 mb-1">
-                            <input type="file" id="adm-item-file-${idx}" accept="image/*" class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:bg-amber-500 file:text-slate-950 cursor-pointer">
+                        <div class="flex items-center gap-2">
+                            <div class="w-12 h-12 bg-slate-800 rounded-lg border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                <img id="adm-item-prev-${idx}" src="${esc(safeImg(item.img, item.name))}" alt="${esc(item.name)}" data-g="1" referrerpolicy="no-referrer" onerror="imgFail(this)" class="max-w-full max-h-full object-contain">
+                            </div>
+                            <input type="text" id="adm-item-img-${idx}" value="${esc(urlVal)}" oninput="previewCaseItemUrl(${idx})" placeholder="Ссылка на фото (URL)" class="flex-1 min-w-0 p-2 rounded bg-slate-800 text-white text-xs border border-slate-700">
+                            <button type="button" onclick="findCaseItemImage(${idx}, true)" title="Найти картинку по названию" class="flex-shrink-0 bg-slate-700 hover:bg-slate-600 text-slate-200 px-2.5 py-2 rounded text-xs active:scale-95">🔍</button>
                         </div>
-                    </div>`).join('');
+                        <p id="adm-item-status-${idx}" class="hidden text-[10px] text-slate-400"></p>
+                        <div id="adm-item-cands-${idx}" class="hidden flex flex-wrap gap-1.5"></div>
+                        <input type="file" id="adm-item-file-${idx}" accept="image/*" class="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:bg-amber-500 file:text-slate-950 cursor-pointer">
+                    </div>`;
+            }).join('');
+            guardImages(container);
+        }
+
+        // Сохраняем то, что уже введено в строках, чтобы оно не пропадало при добавлении/удалении предмета
+        function syncAdminCaseItemsFromInputs() {
+            const cat = $('admin-case-cat').value;
+            const arr = currentCaseItems[cat];
+            if (!arr) return;
+            arr.forEach((item, i) => {
+                const n = $(`adm-item-name-${i}`);
+                if (!n) return;
+                const r = $(`adm-item-rarity-${i}`);
+                const c = $(`adm-item-chance-${i}`);
+                const u = $(`adm-item-img-${i}`);
+                const urlV = u ? u.value.trim() : '';
+                let img = item.img;
+                if (urlV) img = urlV;
+                else if (isHttp(item.img)) img = '';
+                arr[i] = {
+                    ...item,
+                    name: n.value.trim() || item.name,
+                    rarity: r ? r.value : item.rarity,
+                    chance: (c && c.value.trim()) || item.chance,
+                    img
+                };
+            });
         }
 
         function addAdminCaseItemRow() {
             const cat = $('admin-case-cat').value;
             if (!currentCaseItems[cat]) currentCaseItems[cat] = [];
+            syncAdminCaseItemsFromInputs();
             currentCaseItems[cat].push({
                 name: "Новый Предмет",
                 rarity: "common",
@@ -2713,8 +2758,89 @@
         function removeAdminCaseItemRow(idx) {
             const cat = $('admin-case-cat').value;
             if (currentCaseItems[cat] && currentCaseItems[cat].length > idx) {
+                syncAdminCaseItemsFromInputs();
                 currentCaseItems[cat].splice(idx, 1);
                 renderAdminCaseItemsList();
+            }
+        }
+
+        function renderCaseCands(idx, list) {
+            const box = $(`adm-item-cands-${idx}`);
+            if (!box) return;
+            box._list = list || [];
+            if (!list || !list.length) {
+                box.innerHTML = '';
+                box.classList.add('hidden');
+                return;
+            }
+            box.classList.remove('hidden');
+            box.innerHTML = list.slice(0, 8).map((u, i) => `
+                <button type="button" onclick="pickCaseItemImage(${idx},${i})" class="w-12 h-12 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden active:scale-95 flex items-center justify-center">
+                    <img src="${esc(fixUrl(u))}" data-g="1" data-hide="1" referrerpolicy="no-referrer" onerror="imgFail(this)" class="max-w-full max-h-full object-contain">
+                </button>`).join('');
+            guardImages(box);
+        }
+
+        function pickCaseItemImage(idx, i) {
+            const box = $(`adm-item-cands-${idx}`);
+            const u = box && box._list && box._list[i];
+            const urlEl = $(`adm-item-img-${idx}`);
+            if (!u || !urlEl) return;
+            urlEl.value = u;
+            urlEl.dataset.auto = '';
+            setImgSrc($(`adm-item-prev-${idx}`), u, $(`adm-item-name-${idx}`).value.trim());
+        }
+
+        function previewCaseItemUrl(idx) {
+            const urlEl = $(`adm-item-img-${idx}`);
+            if (!urlEl) return;
+            urlEl.dataset.auto = ''; // ссылку ввели вручную — автоподбор её не трогает
+            const u = urlEl.value.trim();
+            if (isHttp(u)) setImgSrc($(`adm-item-prev-${idx}`), u, $(`adm-item-name-${idx}`).value.trim());
+        }
+
+        // Автоподбор при вводе названия (только если ссылка пустая или была подставлена автоматически)
+        function scheduleCaseItemImage(idx) {
+            clearTimeout(caseImgTimers[idx]);
+            caseImgTimers[idx] = setTimeout(() => {
+                const urlEl = $(`adm-item-img-${idx}`);
+                if (!urlEl) return;
+                if (!urlEl.value.trim() || urlEl.dataset.auto === '1') findCaseItemImage(idx, false);
+            }, 900);
+        }
+
+        async function findCaseItemImage(idx, force) {
+            const nameEl = $(`adm-item-name-${idx}`);
+            const urlEl = $(`adm-item-img-${idx}`);
+            if (!nameEl || !urlEl) return;
+            const cat = $('admin-case-cat').value;
+            const name = nameEl.value.trim();
+            const stEl = $(`adm-item-status-${idx}`);
+            if (!name) return;
+            if (!force && urlEl.value.trim() && urlEl.dataset.auto !== '1') return;
+
+            stEl.classList.remove('hidden');
+            stEl.innerText = 'Ищу картинку…';
+            const res = await wikiFind(name, cat);
+
+            // строку могли перерисовать или изменить название, пока шёл поиск
+            const nameNow = $(`adm-item-name-${idx}`);
+            if (!nameNow || nameNow.value.trim() !== name) return;
+            const st2 = $(`adm-item-status-${idx}`);
+            const prev = $(`adm-item-prev-${idx}`);
+            const urlNow = $(`adm-item-img-${idx}`);
+
+            renderCaseCands(idx, res.list);
+            if (res.main) {
+                urlNow.value = res.main;
+                urlNow.dataset.auto = '1';
+                setImgSrc(prev, res.main, name);
+                st2.innerText = 'Картинка найдена — можно выбрать другую ниже';
+            } else {
+                setImgSrc(prev, nameImg(name), name);
+                st2.innerText = res.down
+                    ? 'Нет связи с вики — вставьте ссылку (кнопка поиска ниже), загрузите фото или оставьте карточку с названием'
+                    : 'Картинка не найдена — вставьте ссылку, загрузите фото или оставьте карточку с названием';
             }
         }
 
@@ -2736,10 +2862,14 @@
                 const urlImg = $(`adm-item-img-${i}`).value.trim();
                 const fileInput = $(`adm-item-file-${i}`);
 
-                let img = urlImg || PLACEHOLDER;
+                let img = urlImg;
                 if (fileInput && fileInput.files[0]) {
                     img = await compressImage(fileInput.files[0], 320, 0.6);
+                } else if (!img) {
+                    // ссылки нет — пробуем найти картинку по названию
+                    img = (await wikiImage(name, cat)) || PLACEHOLDER;
                 }
+                if (isHttp(img)) saveLibraryImage(name, cat, img);
 
                 newItems.push({ name, rarity, chance, img });
             }
@@ -2748,6 +2878,8 @@
                 const { ref, set } = window.fb;
                 await set(ref(window.rtdb, 'case_' + cat), { price: newPrice, items: newItems });
                 alert(t('Цена и настройки кейса успешно сохранены!'));
+                currentCaseItems[cat] = newItems;
+                renderAdminCaseItemsList();
             }
         }
 
