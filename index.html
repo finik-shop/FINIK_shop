@@ -484,13 +484,14 @@
                             <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Фотография</label>
                             <div class="flex items-center gap-3 mb-2">
                                 <div class="w-16 h-16 bg-slate-900 rounded-lg border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                    <img id="prod-img-preview" alt="" class="max-w-full max-h-full object-contain">
+                                    <img id="prod-img-preview" alt="" onerror="this.onerror=null;this.src=PLACEHOLDER" class="max-w-full max-h-full object-contain">
                                 </div>
                                 <div class="flex-1">
                                     <button type="button" onclick="autoFindProductImage()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold py-2 rounded-xl active:scale-95">🔍 Найти картинку по названию</button>
                                     <p id="prod-img-status" class="text-[10px] text-slate-400 mt-1">Введите название (например Cat) — картинка подставится сама</p>
                                 </div>
                             </div>
+                            <input type="text" id="prod-img-url" oninput="previewProductUrl()" placeholder="Или вставьте URL картинки..." class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs mb-2">
                             <input type="file" id="prod-img" accept="image/*" class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white cursor-pointer bg-slate-900 p-1.5 rounded-xl border border-slate-700">
                         </div>
                         <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold p-3 rounded-xl transition shadow-lg active:scale-95 text-sm">
@@ -882,7 +883,8 @@
             'Введите название (например Cat) — картинка подставится сама': ['Type a name (e.g. Cat) — the image will appear automatically', 'Введіть назву (наприклад Cat) — картинка підставиться сама'],
             'Ищу картинку…': ['Searching for an image…', 'Шукаю картинку…'],
             'Картинка найдена': ['Image found', 'Картинку знайдено'],
-            'Картинка не найдена — загрузите фото': ['Image not found — upload a photo', 'Картинку не знайдено — завантажте фото'],
+            'Картинка не найдена — загрузите фото': ['Image not found — upload a photo or paste a link', 'Картинку не знайдено — завантажте фото або вставте посилання'],
+            'Нет связи с вики — вставьте ссылку на картинку или загрузите фото': ['Cannot reach the wiki — paste an image link or upload a photo', 'Немає зв’язку з вікі — вставте посилання на картинку або завантажте фото'],
             'Добавить в магазин': ['Add to shop', 'Додати в магазин'],
             'Настройка Цены и Кейсов': ['Price & case settings', 'Налаштування ціни та кейсів'],
             'Выбрать кейс': ['Choose case', 'Обрати кейс'],
@@ -1875,44 +1877,137 @@
             alert(t('Цена обновлена!'));
         }
 
-        /* --- Автоподбор картинки по названию (вики Adopt Me / MM2) --- */
-        const WIKI_API = {
-            adopt: 'https://adoptme.fandom.com/api.php',
-            mm2: 'https://murder-mystery-2.fandom.com/api.php'
+        /* =====================================================
+           АВТОПОДБОР КАРТИНКИ ПО НАЗВАНИЮ (вики Adopt Me / MM2)
+           Пробуем несколько способов подряд:
+           1) API Fandom «Articles/Details» по названию статьи
+           2) поиск по вики -> снова Details
+           3) картинки со страницы статьи (MediaWiki API)
+           Если браузер блокирует запрос (CORS) — повторяем через прокси.
+        ===================================================== */
+        const WIKI_HOST = {
+            adopt: 'adoptme.fandom.com',
+            mm2: 'murder-mystery-2.fandom.com'
         };
         const imgCache = {};
         let autoImgTimer = null;
+        let wikiNetErr = false;
+
+        function timedFetchJson(url, ms) {
+            const ctrl = new AbortController();
+            const tm = setTimeout(() => ctrl.abort(), ms || 7000);
+            return fetch(url, { signal: ctrl.signal })
+                .then(r => r.json())
+                .finally(() => clearTimeout(tm));
+        }
+
+        async function fetchJsonCors(url) {
+            try {
+                return await timedFetchJson(url, 6000);
+            } catch (e1) {
+                try {
+                    return await timedFetchJson('https://api.allorigins.win/raw?url=' + encodeURIComponent(url), 9000);
+                } catch (e2) {
+                    wikiNetErr = true;
+                    throw e2;
+                }
+            }
+        }
+
+        const titleCase = s => String(s).replace(/\S+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
+        async function wikiDetails(host, titles) {
+            if (!titles.length) return [];
+            const url = `https://${host}/api/v1/Articles/Details?titles=${encodeURIComponent(titles.join(','))}&abstract=0&width=300&height=300`;
+            const j = await fetchJsonCors(url);
+            return j && j.items ? Object.values(j.items) : [];
+        }
+
+        function pickByOrder(items, titles) {
+            for (const tt of titles) {
+                const it = items.find(i => i.thumbnail && String(i.title).toLowerCase() === String(tt).toLowerCase());
+                if (it) return it.thumbnail;
+            }
+            const any = items.find(i => i.thumbnail);
+            return any ? any.thumbnail : null;
+        }
+
+        async function wikiSearchTitles(host, q) {
+            const url = `https://${host}/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srnamespace=0&srlimit=6&format=json&origin=*`;
+            const j = await fetchJsonCors(url);
+            const list = j && j.query && j.query.search ? j.query.search : [];
+            return list.map(s => s.title);
+        }
+
+        async function wikiPageImage(host, title, q) {
+            const u1 = `https://${host}/api.php?action=query&titles=${encodeURIComponent(title)}&prop=images&imlimit=20&format=json&origin=*`;
+            const j1 = await fetchJsonCors(u1);
+            const pages = j1 && j1.query && j1.query.pages ? Object.values(j1.query.pages) : [];
+            const files = pages.length && pages[0].images ? pages[0].images.map(i => i.title) : [];
+            const good = files.filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f) && !/icon|logo|button|flag|badge|stub|robux/i.test(f));
+            if (!good.length) return null;
+            const words = String(q).toLowerCase().split(/\s+/).filter(Boolean);
+            const score = f => words.filter(w => f.toLowerCase().includes(w)).length;
+            good.sort((a, b) => score(b) - score(a));
+            const u2 = `https://${host}/api.php?action=query&titles=${encodeURIComponent(good[0])}&prop=imageinfo&iiprop=url&iiurlwidth=300&format=json&origin=*`;
+            const j2 = await fetchJsonCors(u2);
+            const p2 = j2 && j2.query && j2.query.pages ? Object.values(j2.query.pages) : [];
+            const ii = p2[0] && p2[0].imageinfo && p2[0].imageinfo[0];
+            return ii ? (ii.thumburl || ii.url) : null;
+        }
 
         async function wikiImage(name, cat) {
-            const base = WIKI_API[cat];
-            const clean = String(name || '').trim();
-            if (!base || !clean) return null;
-            const cacheKey = cat + ':' + clean.toLowerCase();
-            if (cacheKey in imgCache) return imgCache[cacheKey];
+            const host = WIKI_HOST[cat];
+            const clean = String(name || '').trim().replace(/\s+/g, ' ');
+            if (!host || !clean) return null;
+            const ck = cat + ':' + clean.toLowerCase();
+            if (imgCache[ck]) return imgCache[ck];
+            wikiNetErr = false;
 
             const stripped = clean.replace(/\b(mega neon|neon|mega|nfr|mfr|fr|fly|ride)\b/gi, ' ').replace(/\s+/g, ' ').trim();
-            const queries = [clean];
-            if (stripped && stripped.toLowerCase() !== clean.toLowerCase()) queries.push(stripped);
+            const cands = [];
+            [titleCase(clean), titleCase(stripped), clean, stripped].forEach(x => { if (x && !cands.includes(x)) cands.push(x); });
 
-            for (const q of queries) {
-                try {
-                    const url = `${base}?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrnamespace=0&gsrlimit=6&prop=pageimages&piprop=thumbnail&pithumbsize=300`;
-                    const r = await fetch(url);
-                    const j = await r.json();
-                    const pages = j.query && j.query.pages ? Object.values(j.query.pages) : [];
-                    pages.sort((a, b) => (a.index || 99) - (b.index || 99));
-                    const exact = pages.find(p => p.thumbnail && String(p.title).toLowerCase() === q.toLowerCase());
-                    const pick = exact || pages.find(p => p.thumbnail);
-                    if (pick) { imgCache[cacheKey] = pick.thumbnail.source; return imgCache[cacheKey]; }
-                } catch (e) { console.warn('Поиск картинки:', e); }
+            try {
+                // 1) Прямые названия статей
+                let url = pickByOrder(await wikiDetails(host, cands), cands);
+
+                // 2) Поиск по вики
+                let found = [];
+                if (!url) {
+                    for (const q of [stripped || clean, clean]) {
+                        found = await wikiSearchTitles(host, q);
+                        if (found.length) {
+                            url = pickByOrder(await wikiDetails(host, found), found);
+                            if (url) break;
+                        }
+                    }
+                }
+
+                // 3) Картинки со страницы статьи
+                if (!url) {
+                    const tryTitles = [...cands.slice(0, 2), ...found.slice(0, 2)];
+                    for (const tt of tryTitles) {
+                        url = await wikiPageImage(host, tt, stripped || clean);
+                        if (url) break;
+                    }
+                }
+
+                if (url) { imgCache[ck] = url; return url; }
+            } catch (e) {
+                console.warn('Поиск картинки:', e);
             }
-            imgCache[cacheKey] = null;
             return null;
         }
 
         function scheduleAutoImage() {
             clearTimeout(autoImgTimer);
             autoImgTimer = setTimeout(autoFindProductImage, 700);
+        }
+
+        function previewProductUrl() {
+            const u = ($('prod-img-url').value || '').trim();
+            if (/^https?:\/\//i.test(u)) $('prod-img-preview').src = u;
         }
 
         async function autoFindProductImage() {
@@ -1928,8 +2023,15 @@
             st.innerText = 'Ищу картинку…';
             const url = await wikiImage(name, cat);
             if (name !== $('prod-title').value.trim()) return; // название уже изменили
-            if (url) { pv.src = url; st.innerText = 'Картинка найдена'; }
-            else { pv.src = PLACEHOLDER; st.innerText = 'Картинка не найдена — загрузите фото'; }
+            if (url) {
+                pv.src = url;
+                st.innerText = 'Картинка найдена';
+            } else {
+                pv.src = PLACEHOLDER;
+                st.innerText = wikiNetErr
+                    ? 'Нет связи с вики — вставьте ссылку на картинку или загрузите фото'
+                    : 'Картинка не найдена — загрузите фото';
+            }
         }
 
         async function handleSaveProduct(e) {
@@ -1946,9 +2048,11 @@
                 const category = $('prod-category').value;
                 const type = $('prod-type').value;
                 const fileInput = $('prod-img');
+                const urlField = ($('prod-img-url').value || '').trim();
 
                 let imgData = '';
                 if (fileInput.files[0]) imgData = await compressImage(fileInput.files[0], 320, 0.6);
+                else if (/^https?:\/\//i.test(urlField)) imgData = urlField;
                 else imgData = (await wikiImage(title, category)) || '';
 
                 const sellerTg = (currentUser && currentUser.tgUsername) || 'TOPTTL';
