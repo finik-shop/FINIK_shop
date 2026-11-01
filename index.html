@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0f172a">
+    <meta name="referrer" content="no-referrer">
     <title>Roblox Store — Adopt Me, MM2 & Кейсы</title>
 
     <!-- Ускорение загрузки -->
@@ -11,15 +12,21 @@
     <link rel="preconnect" href="https://finik-shop-2f147-default-rtdb.firebaseio.com" crossorigin>
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://wsrv.nl">
+    <link rel="dns-prefetch" href="https://static.wikia.nocookie.net">
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js">
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js">
 
     <style>
         html { background: #0f172a; }
         body { background: #0f172a; color: #f1f5f9; }
+        @keyframes splashspin { to { transform: rotate(360deg); } }
     </style>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind и иконки грузятся параллельно и не блокируют страницу -->
+    <script async src="https://cdn.tailwindcss.com" onload="window.__twLoaded=true;window.hideSplashSoon&&window.hideSplashSoon()"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all';window.__faLoaded=true;window.hideSplashSoon&&window.hideSplashSoon()">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
 
     <!-- Firebase SDK -->
     <script type="module">
@@ -88,6 +95,13 @@
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white pb-28 sm:pb-12 overflow-x-hidden">
+
+    <!-- Заставка: показывается мгновенно, пока грузятся стили -->
+    <div id="app-splash" style="position:fixed;inset:0;z-index:9999;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .3s;font-family:system-ui,-apple-system,sans-serif;color:#a5b4fc">
+        <div style="font-size:46px">🎃</div>
+        <div style="font-weight:900;font-size:20px;letter-spacing:.5px">Roblox Store</div>
+        <div style="width:34px;height:34px;border:4px solid #334155;border-top-color:#fb923c;border-radius:50%;animation:splashspin .8s linear infinite"></div>
+    </div>
 
     <div id="hw-deco"></div>
 
@@ -487,7 +501,7 @@
                             <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Фотография</label>
                             <div class="flex items-center gap-3 mb-2">
                                 <div class="w-16 h-16 bg-slate-900 rounded-lg border border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                    <img id="prod-img-preview" alt="" onerror="this.onerror=null;this.src=PLACEHOLDER" class="max-w-full max-h-full object-contain">
+                                    <img id="prod-img-preview" alt="" referrerpolicy="no-referrer" class="max-w-full max-h-full object-contain">
                                 </div>
                                 <div class="flex-1">
                                     <button type="button" onclick="autoFindProductImage()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold py-2 rounded-xl active:scale-95">🔍 Найти картинку по названию</button>
@@ -768,6 +782,22 @@
 
     <script>
         /* =====================================================
+           ЗАСТАВКА (скрывается, когда стили загружены)
+        ===================================================== */
+        function hideSplash() {
+            const s = document.getElementById('app-splash');
+            if (!s) return;
+            s.style.opacity = '0';
+            setTimeout(() => { if (s.parentNode) s.parentNode.removeChild(s); }, 350);
+        }
+        window.hideSplashSoon = function () {
+            if (!(window.__twLoaded && window.__faLoaded)) return;
+            requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(hideSplash, 60)));
+        };
+        if (window.__twLoaded && window.__faLoaded) window.hideSplashSoon();
+        setTimeout(hideSplash, 4500); // страховка, если что-то не загрузилось
+
+        /* =====================================================
            УТИЛИТЫ
         ===================================================== */
         const $ = id => document.getElementById(id);
@@ -788,7 +818,56 @@
             const n = String(name || '?').trim() || '?';
             return PH(n.length > 14 ? n.slice(0, 13) + '…' : n, hashColor(n));
         };
-        const safeImg = (u, name) => (u && !String(u).includes('via.placeholder.com')) ? u : (name ? nameImg(name) : PLACEHOLDER);
+
+        /* --- Картинки: прокси для вики + запасные варианты --- */
+        // Картинки с вики идут через прокси wsrv.nl: он обходит блокировки и отдаёт уменьшенную (быструю) версию.
+        const proxyImg = u => 'https://wsrv.nl/?url=' + encodeURIComponent(u) + '&w=320';
+        const WIKI_IMG_RE = /(wikia\.nocookie\.net|\.fandom\.com|\.wikia\.com)/i;
+        const isHttp = u => /^https?:\/\//i.test(u || '');
+        const fixUrl = u => (isHttp(u) && WIKI_IMG_RE.test(u)) ? proxyImg(u) : u;
+        const safeImg = (u, name) => (u && !String(u).includes('via.placeholder.com')) ? fixUrl(u) : (name ? nameImg(name) : PLACEHOLDER);
+
+        // Следим за картинкой: если не загрузилась за N секунд (запрос завис) — пробуем следующий вариант
+        function armImg(el) {
+            const st = el.dataset.step || '0';
+            setTimeout(() => {
+                if ((el.dataset.step || '0') !== st) return;
+                if (String(el.src).startsWith('data:')) return;
+                if (!(el.complete && el.naturalWidth > 0)) imgFail(el);
+            }, st === '0' ? 5000 : 7000);
+        }
+        function guardImages(root) {
+            if (root) root.querySelectorAll('img[data-g]').forEach(armImg);
+        }
+        function imgFail(el) {
+            const cur = el.getAttribute('src') || '';
+            const st = el.dataset.step || '0';
+            if (st === '0') {
+                // прокси не сработал -> пробуем оригинальную ссылку
+                if (cur.startsWith('https://wsrv.nl/')) {
+                    let orig = '';
+                    try { orig = new URL(cur).searchParams.get('url') || ''; } catch (e) {}
+                    if (isHttp(orig)) { el.dataset.step = '1'; el.src = orig; armImg(el); return; }
+                }
+                // прямая ссылка не сработала -> пробуем прокси
+                if (isHttp(cur)) { el.dataset.step = '1'; el.src = proxyImg(cur); armImg(el); return; }
+            }
+            // всё не сработало
+            el.onerror = null;
+            if (el.dataset.hide) el.style.display = 'none';
+            else el.src = nameImg(el.alt);
+        }
+        function setImgSrc(im, url, alt) {
+            im.alt = alt || '';
+            delete im.dataset.step;
+            im.dataset.g = '1';
+            im.style.display = '';
+            im.setAttribute('referrerpolicy', 'no-referrer');
+            im.onerror = () => imgFail(im);
+            im.src = fixUrl(url);
+            armImg(im);
+        }
+
         const curSym = c => c === 'RUB' ? '₽' : '₴';
         const IMG_HINT = 'Введите название (например Cat) — картинка подставится сама';
 
@@ -1206,7 +1285,7 @@
             updateAdminTypeOptions();
             switchTab('adopt');
             applySiteLock();
-            $('prod-img-preview').src = PLACEHOLDER;
+            setImgSrc($('prod-img-preview'), PLACEHOLDER, '');
             if (lang !== 'ru') setLang(lang);
             updateLangButtons();
             if (window.firebaseReady) window.onFirebaseLoaded();
@@ -1860,7 +1939,7 @@
                             </div>
 
                             <div class="h-28 sm:h-32 bg-slate-900 rounded-lg flex items-center justify-center p-1 border border-slate-700/50 mt-1">
-                                <img src="${esc(safeImg(item.img, item.title))}" alt="${esc(item.title)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=nameImg(this.alt)" class="max-h-full max-w-full object-contain">
+                                <img src="${esc(safeImg(item.img, item.title))}" alt="${esc(item.title)}" data-g="1" referrerpolicy="no-referrer" loading="lazy" decoding="async" onerror="imgFail(this)" class="max-h-full max-w-full object-contain">
                             </div>
                             <div class="mt-2 flex flex-col justify-between flex-grow">
                                 <div>
@@ -1883,6 +1962,7 @@
             });
 
             grid.innerHTML = html;
+            guardImages(grid);
             countBadge.innerText = `${count} товаров`;
             emptyState.classList.toggle('hidden', count > 0);
         }
@@ -1904,7 +1984,7 @@
            Источники (по порядку):
            1) уже выложенные товары с таким названием и общая «библиотека картинок» сайта
            2) вики Adopt Me / MM2 (MediaWiki API: fetch + JSONP + прокси)
-           3) прямые ссылки на файлы вики (Special:FilePath) — без запросов, только <img>
+           3) прямые ссылки на файлы вики (Special:FilePath)
            Если ничего нет — карточка с названием. Любую картинку можно выбрать
            вручную; выбранная ссылка запоминается в библиотеке для этого названия.
         ===================================================== */
@@ -1989,7 +2069,7 @@
             return r && r.query && r.query.search ? r.query.search.map(s => s.title) : [];
         }
 
-        // Проверка, что картинка по ссылке грузится (без CORS)
+        // Проверка, что картинка по ссылке грузится
         function probeImage(url, ms) {
             return new Promise(res => {
                 const im = new Image();
@@ -2006,7 +2086,8 @@
             bases.forEach(b => ['.png', '.jpg', '_Icon.png', '_Render.png'].forEach(sfx => {
                 urls.push(`https://${host}/wiki/Special:FilePath/${encodeURIComponent(b)}${sfx}?width=300`);
             }));
-            const results = await Promise.all(urls.map(u => probeImage(u, 6000)));
+            // проверяем через прокси — так надёжнее
+            const results = await Promise.all(urls.map(u => probeImage(proxyImg(u), 7000).then(ok => ok ? u : null)));
             return results.filter(Boolean);
         }
 
@@ -2014,7 +2095,7 @@
         function localImages(name, cat) {
             const n = name.trim().toLowerCase();
             return allProductsCache
-                .filter(p => p.category === cat && String(p.title || '').trim().toLowerCase() === n && /^https?:\/\//i.test(p.img || ''))
+                .filter(p => p.category === cat && String(p.title || '').trim().toLowerCase() === n && isHttp(p.img))
                 .map(p => p.img);
         }
 
@@ -2035,12 +2116,12 @@
                     new Promise((_, rj) => setTimeout(() => rj(new Error('timeout')), 5000))
                 ]);
                 const v = snap.val();
-                return v && /^https?:\/\//i.test(v.url || '') ? [v.url] : [];
+                return v && isHttp(v.url) ? [v.url] : [];
             } catch (e) { return []; }
         }
 
         function saveLibraryImage(name, cat, url) {
-            if (!window.firebaseReady || !/^https?:\/\//i.test(url || '')) return;
+            if (!window.firebaseReady || !isHttp(url)) return;
             const key = libKey(name, cat);
             if (!key) return;
             try {
@@ -2135,8 +2216,9 @@
             box.innerHTML = `<p class="w-full text-[10px] text-slate-400">Выберите подходящую картинку:</p>` +
                 list.slice(0, 10).map((u, i) => `
                     <button type="button" onclick="pickProductImage(${i})" class="w-14 h-14 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden active:scale-95 flex items-center justify-center">
-                        <img src="${esc(u)}" loading="lazy" class="max-w-full max-h-full object-contain" onerror="this.style.display='none'">
+                        <img src="${esc(fixUrl(u))}" data-g="1" data-hide="1" referrerpolicy="no-referrer" onerror="imgFail(this)" class="max-w-full max-h-full object-contain">
                     </button>`).join('');
+            guardImages(box);
         }
 
         function pickProductImage(i) {
@@ -2145,13 +2227,13 @@
             if (!u) return;
             $('prod-img-url').value = u;
             pickedUrl = u;
-            $('prod-img-preview').src = u;
+            setImgSrc($('prod-img-preview'), u, $('prod-title').value.trim());
             $('prod-img-status').innerText = 'Картинка найдена — можно выбрать другую ниже';
         }
 
         function previewProductUrl() {
             const u = ($('prod-img-url').value || '').trim();
-            if (/^https?:\/\//i.test(u)) $('prod-img-preview').src = u;
+            if (isHttp(u)) setImgSrc($('prod-img-preview'), u, $('prod-title').value.trim());
         }
 
         function openImageSearch() {
@@ -2176,7 +2258,7 @@
 
             if (!name) {
                 st.innerText = IMG_HINT;
-                pv.src = PLACEHOLDER;
+                setImgSrc(pv, PLACEHOLDER, '');
                 renderImgCandidates([]);
                 return;
             }
@@ -2186,9 +2268,9 @@
 
             renderImgCandidates(res.list);
             const manual = ($('prod-img-url').value || '').trim();
-            if (/^https?:\/\//i.test(manual)) pv.src = manual;
-            else if (res.main) pv.src = res.main;
-            else pv.src = nameImg(name);
+            if (isHttp(manual)) setImgSrc(pv, manual, name);
+            else if (res.main) setImgSrc(pv, res.main, name);
+            else setImgSrc(pv, nameImg(name), name);
 
             if (res.main) st.innerText = 'Картинка найдена — можно выбрать другую ниже';
             else if (res.down) st.innerText = 'Нет связи с вики — вставьте ссылку (кнопка поиска ниже), загрузите фото или оставьте карточку с названием';
@@ -2213,7 +2295,7 @@
 
                 let imgData = '';
                 if (fileInput.files[0]) imgData = await compressImage(fileInput.files[0], 320, 0.6);
-                else if (/^https?:\/\//i.test(urlField)) imgData = urlField;
+                else if (isHttp(urlField)) imgData = urlField;
                 else imgData = (await wikiImage(title, category)) || '';
 
                 const sellerTg = (currentUser && currentUser.tgUsername) || 'TOPTTL';
@@ -2221,12 +2303,12 @@
                 if (window.firebaseReady) {
                     const { ref, push } = window.fb;
                     await push(ref(window.rtdb, 'products'), { title, price, currency, discount, isTrending, category, type, img: imgData, sellerTg });
-                    if (/^https?:\/\//i.test(imgData)) saveLibraryImage(title, category, imgData);
+                    if (isHttp(imgData)) saveLibraryImage(title, category, imgData);
                     alert(t('Товар добавлен в магазин!'));
                     $('product-form').reset();
                     pickedUrl = '';
                     renderImgCandidates([]);
-                    $('prod-img-preview').src = PLACEHOLDER;
+                    setImgSrc($('prod-img-preview'), PLACEHOLDER, '');
                     $('prod-img-status').innerText = IMG_HINT;
                     updateAdminTypeOptions();
                     switchTab(category);
@@ -2280,12 +2362,13 @@
                 items.forEach(item => {
                     html += `
                     <div class="flex-shrink-0 w-24 h-28 bg-slate-900 border-2 rounded-xl p-2 flex flex-col items-center justify-between shadow-md rarity-${esc(item.rarity || 'common')}">
-                        <img src="${esc(safeImg(item.img, item.name))}" alt="${esc(item.name)}" onerror="this.onerror=null;this.src=nameImg(this.alt)" class="w-16 h-14 object-contain filter drop-shadow">
+                        <img src="${esc(safeImg(item.img, item.name))}" alt="${esc(item.name)}" data-g="1" referrerpolicy="no-referrer" onerror="imgFail(this)" class="w-16 h-14 object-contain filter drop-shadow">
                         <span class="text-[10px] font-bold text-slate-200 text-center line-clamp-1">${esc(item.name)}</span>
                     </div>`;
                 });
             }
             tape.innerHTML = html;
+            guardImages(tape);
         }
 
         function renderCaseShowcase(cat) {
@@ -2294,10 +2377,11 @@
             const items = currentCaseItems[cat] && currentCaseItems[cat].length > 0 ? currentCaseItems[cat] : defaultCaseItems[cat];
             showcase.innerHTML = items.map(item => `
                     <div class="bg-slate-900/90 border rounded-xl p-2.5 flex flex-col items-center text-center rarity-${esc(item.rarity || 'common')}">
-                        <img src="${esc(safeImg(item.img, item.name))}" alt="${esc(item.name)}" onerror="this.onerror=null;this.src=nameImg(this.alt)" class="w-14 h-12 object-contain mb-1">
+                        <img src="${esc(safeImg(item.img, item.name))}" alt="${esc(item.name)}" data-g="1" referrerpolicy="no-referrer" onerror="imgFail(this)" class="w-14 h-12 object-contain mb-1">
                         <span class="text-[11px] font-bold text-white line-clamp-1">${esc(item.name)}</span>
                         <span class="text-[10px] text-amber-400 font-semibold mt-0.5">Шанс: ${esc(item.chance || '10%')}</span>
                     </div>`).join('');
+            guardImages(showcase);
         }
 
         function safeEmailKey(email) { return email.replace(/\./g, '_dot_').replace(/@/g, '_at_'); }
@@ -2485,7 +2569,7 @@
                                 <button onclick="${item.isShopFav ? `toggleFavoriteShop('${item.id}')` : `toggleFavInventoryItem('${item.id}',${!item.isFav})`}" class="absolute top-2 right-2 text-xs p-1 rounded-full bg-slate-900/60">
                                     <i class="fa-solid fa-star text-amber-400"></i>
                                 </button>
-                                <img src="${esc(safeImg(item.img, item.name))}" alt="${esc(item.name)}" loading="lazy" onerror="this.onerror=null;this.src=nameImg(this.alt)" class="w-20 h-16 object-contain my-2 filter drop-shadow">
+                                <img src="${esc(safeImg(item.img, item.name))}" alt="${esc(item.name)}" data-g="1" referrerpolicy="no-referrer" loading="lazy" onerror="imgFail(this)" class="w-20 h-16 object-contain my-2 filter drop-shadow">
                                 <span class="font-bold text-xs text-white line-clamp-1">${esc(item.name)}</span>
                                 <span class="text-[9px] text-slate-400 mt-1 uppercase font-semibold">${item.isShopFav ? 'Из магазина' : esc(item.rarity || 'common')}</span>
                                 ${item.isShopFav ? `
@@ -2497,6 +2581,7 @@
                     }
                 });
                 grid.innerHTML = html;
+                guardImages(grid);
 
                 if (currentInventoryFilter === 'fav' && count === 0) {
                     emptyText.innerText = 'У вас нет предметов в избранном. Нажмите ❤️ в магазине или ⭐ в инвентаре, чтобы добавить их сюда!';
