@@ -64,6 +64,9 @@
         .rarity-legendary { border-color: #eab308; background: rgba(234, 179, 8, 0.1); }
         .rarity-godly { border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
 
+        /* Контент всегда выше декора */
+        main { position: relative; z-index: 2; }
+
         /* ---------- ХЭЛЛОУИН ТЕМА ---------- */
         #hw-deco { position: fixed; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; display: none; }
         body.halloween #hw-deco { display: block; }
@@ -457,7 +460,7 @@
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Название товара</label>
-                            <input type="text" id="prod-title" required oninput="scheduleAutoImage()" placeholder="Frost Dragon" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm">
+                            <input type="text" id="prod-title" required autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" oninput="scheduleAutoImage()" onkeydown="if(event.key==='Enter'){event.preventDefault();autoFindProductImage();}" placeholder="Frost Dragon" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm">
                         </div>
                         <div class="grid grid-cols-3 gap-2">
                             <div>
@@ -491,7 +494,9 @@
                                     <p id="prod-img-status" class="text-[10px] text-slate-400 mt-1">Введите название (например Cat) — картинка подставится сама</p>
                                 </div>
                             </div>
+                            <div id="prod-img-candidates" class="hidden flex flex-wrap gap-2 mb-2"></div>
                             <input type="text" id="prod-img-url" oninput="previewProductUrl()" placeholder="Или вставьте URL картинки..." class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs mb-2">
+                            <button type="button" onclick="openImageSearch()" class="w-full mb-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold py-2 rounded-xl active:scale-95">🔎 Найти картинку в Google</button>
                             <input type="file" id="prod-img" accept="image/*" class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white cursor-pointer bg-slate-900 p-1.5 rounded-xl border border-slate-700">
                         </div>
                         <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold p-3 rounded-xl transition shadow-lg active:scale-95 text-sm">
@@ -767,10 +772,25 @@
         ===================================================== */
         const $ = id => document.getElementById(id);
         const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        const PH = (txt, color) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" rx="14" fill="${color}"/><text x="60" y="70" font-size="22" font-family="Arial" font-weight="700" fill="#ffffff" text-anchor="middle">${txt}</text></svg>`);
+        const PH = (txt, color) => {
+            const s = String(txt);
+            const fs = s.length > 12 ? 13 : (s.length > 8 ? 16 : 22);
+            return 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" rx="14" fill="${color}"/><text x="60" y="68" font-size="${fs}" font-family="Arial" font-weight="700" fill="#ffffff" text-anchor="middle">${esc(s)}</text></svg>`);
+        };
         const PLACEHOLDER = PH('?', '#475569');
-        const safeImg = u => (u && !String(u).includes('via.placeholder.com')) ? u : PLACEHOLDER;
+        const hashColor = s => {
+            let h = 0;
+            for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+            return ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#ec4899', '#14b8a6'][h % 8];
+        };
+        // Карточка с названием — показывается, если настоящей картинки нет
+        const nameImg = name => {
+            const n = String(name || '?').trim() || '?';
+            return PH(n.length > 14 ? n.slice(0, 13) + '…' : n, hashColor(n));
+        };
+        const safeImg = (u, name) => (u && !String(u).includes('via.placeholder.com')) ? u : (name ? nameImg(name) : PLACEHOLDER);
         const curSym = c => c === 'RUB' ? '₽' : '₴';
+        const IMG_HINT = 'Введите название (например Cat) — картинка подставится сама';
 
         /* =====================================================
            ПЕРЕВОД (русский / английский / украинский)
@@ -880,11 +900,13 @@
             '🔥 Закрепить как Трендовый товар': ['🔥 Pin as Trending item', '🔥 Закріпити як трендовий товар'],
             'Фотография': ['Photo', 'Фото'],
             '🔍 Найти картинку по названию': ['🔍 Find image by name', '🔍 Знайти картинку за назвою'],
+            '🔎 Найти картинку в Google': ['🔎 Find image in Google', '🔎 Знайти картинку в Google'],
             'Введите название (например Cat) — картинка подставится сама': ['Type a name (e.g. Cat) — the image will appear automatically', 'Введіть назву (наприклад Cat) — картинка підставиться сама'],
             'Ищу картинку…': ['Searching for an image…', 'Шукаю картинку…'],
-            'Картинка найдена': ['Image found', 'Картинку знайдено'],
-            'Картинка не найдена — загрузите фото': ['Image not found — upload a photo or paste a link', 'Картинку не знайдено — завантажте фото або вставте посилання'],
-            'Нет связи с вики — вставьте ссылку на картинку или загрузите фото': ['Cannot reach the wiki — paste an image link or upload a photo', 'Немає зв’язку з вікі — вставте посилання на картинку або завантажте фото'],
+            'Картинка найдена — можно выбрать другую ниже': ['Image found — you can pick another one below', 'Картинку знайдено — можна обрати іншу нижче'],
+            'Картинка не найдена — вставьте ссылку, загрузите фото или оставьте карточку с названием': ['Image not found — paste a link, upload a photo or keep the name card', 'Картинку не знайдено — вставте посилання, завантажте фото або залиште картку з назвою'],
+            'Нет связи с вики — вставьте ссылку (кнопка поиска ниже), загрузите фото или оставьте карточку с названием': ['Cannot reach the wiki — paste a link (search button below), upload a photo or keep the name card', 'Немає зв’язку з вікі — вставте посилання (кнопка пошуку нижче), завантажте фото або залиште картку з назвою'],
+            'Выберите подходящую картинку:': ['Pick a suitable image:', 'Оберіть підходящу картинку:'],
             'Добавить в магазин': ['Add to shop', 'Додати в магазин'],
             'Настройка Цены и Кейсов': ['Price & case settings', 'Налаштування ціни та кейсів'],
             'Выбрать кейс': ['Choose case', 'Обрати кейс'],
@@ -1838,7 +1860,7 @@
                             </div>
 
                             <div class="h-28 sm:h-32 bg-slate-900 rounded-lg flex items-center justify-center p-1 border border-slate-700/50 mt-1">
-                                <img src="${esc(safeImg(item.img))}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=PLACEHOLDER" class="max-h-full max-w-full object-contain">
+                                <img src="${esc(safeImg(item.img, item.title))}" alt="${esc(item.title)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=nameImg(this.alt)" class="max-h-full max-w-full object-contain">
                             </div>
                             <div class="mt-2 flex flex-col justify-between flex-grow">
                                 <div>
@@ -1878,131 +1900,253 @@
         }
 
         /* =====================================================
-           АВТОПОДБОР КАРТИНКИ ПО НАЗВАНИЮ (вики Adopt Me / MM2)
-           Пробуем несколько способов подряд:
-           1) API Fandom «Articles/Details» по названию статьи
-           2) поиск по вики -> снова Details
-           3) картинки со страницы статьи (MediaWiki API)
-           Если браузер блокирует запрос (CORS) — повторяем через прокси.
+           АВТОПОДБОР КАРТИНКИ ПО НАЗВАНИЮ
+           Источники (по порядку):
+           1) уже выложенные товары с таким названием и общая «библиотека картинок» сайта
+           2) вики Adopt Me / MM2 (MediaWiki API: fetch + JSONP + прокси)
+           3) прямые ссылки на файлы вики (Special:FilePath) — без запросов, только <img>
+           Если ничего нет — карточка с названием. Любую картинку можно выбрать
+           вручную; выбранная ссылка запоминается в библиотеке для этого названия.
         ===================================================== */
         const WIKI_HOST = {
             adopt: 'adoptme.fandom.com',
             mm2: 'murder-mystery-2.fandom.com'
         };
         const imgCache = {};
+        let jsonpSeq = 0;
+        let findSeq = 0;
+        let pickedUrl = '';
         let autoImgTimer = null;
-        let wikiNetErr = false;
+
+        const uniq = a => a.filter((x, i) => x && a.indexOf(x) === i);
+        const titleCase = s => String(s).replace(/\S+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 
         function timedFetchJson(url, ms) {
             const ctrl = new AbortController();
-            const tm = setTimeout(() => ctrl.abort(), ms || 7000);
+            const tm = setTimeout(() => ctrl.abort(), ms);
             return fetch(url, { signal: ctrl.signal })
                 .then(r => r.json())
                 .finally(() => clearTimeout(tm));
         }
 
-        async function fetchJsonCors(url) {
+        // JSONP — запрос через <script>, обходит CORS
+        function jsonpFetch(url, ms) {
+            return new Promise((resolve, reject) => {
+                const cb = '__wk' + (++jsonpSeq) + '_' + Date.now();
+                const s = document.createElement('script');
+                let tm;
+                const cleanup = () => {
+                    clearTimeout(tm);
+                    try { delete window[cb]; } catch (e) { window[cb] = undefined; }
+                    if (s.parentNode) s.parentNode.removeChild(s);
+                };
+                tm = setTimeout(() => { cleanup(); reject(new Error('jsonp timeout')); }, ms);
+                window[cb] = d => { cleanup(); resolve(d); };
+                s.onerror = () => { cleanup(); reject(new Error('jsonp error')); };
+                s.src = url + '&callback=' + cb;
+                document.head.appendChild(s);
+            });
+        }
+
+        // Первый успешный из нескольких запросов
+        function firstOk(list) {
+            return new Promise((resolve, reject) => {
+                let left = list.length, done = false;
+                list.forEach(p => p.then(
+                    v => { if (!done) { done = true; resolve(v); } },
+                    () => { if (--left === 0 && !done) reject(new Error('all failed')); }
+                ));
+            });
+        }
+
+        // Запрос к api.php вики. st = состояние поиска (ok — сколько ответов получено, down — вики недоступна)
+        async function wikiApi(host, params, st) {
+            if (st.down) return null;
+            const base = `https://${host}/api.php?action=query&format=json&formatversion=2&${new URLSearchParams(params).toString()}`;
             try {
-                return await timedFetchJson(url, 6000);
-            } catch (e1) {
-                try {
-                    return await timedFetchJson('https://api.allorigins.win/raw?url=' + encodeURIComponent(url), 9000);
-                } catch (e2) {
-                    wikiNetErr = true;
-                    throw e2;
-                }
-            }
-        }
-
-        const titleCase = s => String(s).replace(/\S+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
-
-        async function wikiDetails(host, titles) {
-            if (!titles.length) return [];
-            const url = `https://${host}/api/v1/Articles/Details?titles=${encodeURIComponent(titles.join(','))}&abstract=0&width=300&height=300`;
-            const j = await fetchJsonCors(url);
-            return j && j.items ? Object.values(j.items) : [];
-        }
-
-        function pickByOrder(items, titles) {
-            for (const tt of titles) {
-                const it = items.find(i => i.thumbnail && String(i.title).toLowerCase() === String(tt).toLowerCase());
-                if (it) return it.thumbnail;
-            }
-            const any = items.find(i => i.thumbnail);
-            return any ? any.thumbnail : null;
-        }
-
-        async function wikiSearchTitles(host, q) {
-            const url = `https://${host}/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srnamespace=0&srlimit=6&format=json&origin=*`;
-            const j = await fetchJsonCors(url);
-            const list = j && j.query && j.query.search ? j.query.search : [];
-            return list.map(s => s.title);
-        }
-
-        async function wikiPageImage(host, title, q) {
-            const u1 = `https://${host}/api.php?action=query&titles=${encodeURIComponent(title)}&prop=images&imlimit=20&format=json&origin=*`;
-            const j1 = await fetchJsonCors(u1);
-            const pages = j1 && j1.query && j1.query.pages ? Object.values(j1.query.pages) : [];
-            const files = pages.length && pages[0].images ? pages[0].images.map(i => i.title) : [];
-            const good = files.filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f) && !/icon|logo|button|flag|badge|stub|robux/i.test(f));
-            if (!good.length) return null;
-            const words = String(q).toLowerCase().split(/\s+/).filter(Boolean);
-            const score = f => words.filter(w => f.toLowerCase().includes(w)).length;
-            good.sort((a, b) => score(b) - score(a));
-            const u2 = `https://${host}/api.php?action=query&titles=${encodeURIComponent(good[0])}&prop=imageinfo&iiprop=url&iiurlwidth=300&format=json&origin=*`;
-            const j2 = await fetchJsonCors(u2);
-            const p2 = j2 && j2.query && j2.query.pages ? Object.values(j2.query.pages) : [];
-            const ii = p2[0] && p2[0].imageinfo && p2[0].imageinfo[0];
-            return ii ? (ii.thumburl || ii.url) : null;
-        }
-
-        async function wikiImage(name, cat) {
-            const host = WIKI_HOST[cat];
-            const clean = String(name || '').trim().replace(/\s+/g, ' ');
-            if (!host || !clean) return null;
-            const ck = cat + ':' + clean.toLowerCase();
-            if (imgCache[ck]) return imgCache[ck];
-            wikiNetErr = false;
-
-            const stripped = clean.replace(/\b(mega neon|neon|mega|nfr|mfr|fr|fly|ride)\b/gi, ' ').replace(/\s+/g, ' ').trim();
-            const cands = [];
-            [titleCase(clean), titleCase(stripped), clean, stripped].forEach(x => { if (x && !cands.includes(x)) cands.push(x); });
-
+                const r = await firstOk([timedFetchJson(base + '&origin=*', 6000), jsonpFetch(base, 6000)]);
+                if (r && typeof r === 'object') { st.ok++; return r; }
+            } catch (e) {}
             try {
-                // 1) Прямые названия статей
-                let url = pickByOrder(await wikiDetails(host, cands), cands);
-
-                // 2) Поиск по вики
-                let found = [];
-                if (!url) {
-                    for (const q of [stripped || clean, clean]) {
-                        found = await wikiSearchTitles(host, q);
-                        if (found.length) {
-                            url = pickByOrder(await wikiDetails(host, found), found);
-                            if (url) break;
-                        }
-                    }
-                }
-
-                // 3) Картинки со страницы статьи
-                if (!url) {
-                    const tryTitles = [...cands.slice(0, 2), ...found.slice(0, 2)];
-                    for (const tt of tryTitles) {
-                        url = await wikiPageImage(host, tt, stripped || clean);
-                        if (url) break;
-                    }
-                }
-
-                if (url) { imgCache[ck] = url; return url; }
-            } catch (e) {
-                console.warn('Поиск картинки:', e);
-            }
+                const r = await firstOk([
+                    timedFetchJson('https://api.allorigins.win/raw?url=' + encodeURIComponent(base), 8000),
+                    timedFetchJson('https://corsproxy.io/?' + encodeURIComponent(base), 8000)
+                ]);
+                if (r && typeof r === 'object') { st.ok++; return r; }
+            } catch (e) {}
+            if (st.ok === 0) st.down = true;
             return null;
         }
 
-        function scheduleAutoImage() {
-            clearTimeout(autoImgTimer);
-            autoImgTimer = setTimeout(autoFindProductImage, 700);
+        async function pagesFor(host, titles, st) {
+            const r = await wikiApi(host, { titles: titles.join('|'), redirects: '1', prop: 'pageimages|images', piprop: 'thumbnail', pithumbsize: '300', imlimit: '40' }, st);
+            const pages = r && r.query && r.query.pages ? r.query.pages : [];
+            return pages.filter(p => p && !p.missing && !p.invalid);
+        }
+
+        async function searchTitles(host, q, st) {
+            const r = await wikiApi(host, { list: 'search', srsearch: q, srnamespace: '0', srlimit: '6' }, st);
+            return r && r.query && r.query.search ? r.query.search.map(s => s.title) : [];
+        }
+
+        // Проверка, что картинка по ссылке грузится (без CORS)
+        function probeImage(url, ms) {
+            return new Promise(res => {
+                const im = new Image();
+                const tm = setTimeout(() => { im.onload = im.onerror = null; res(null); }, ms);
+                im.onload = () => { clearTimeout(tm); res(im.naturalWidth > 20 ? url : null); };
+                im.onerror = () => { clearTimeout(tm); res(null); };
+                im.src = url;
+            });
+        }
+
+        async function probeFilePaths(host, clean, stripped) {
+            const bases = uniq([titleCase(clean), titleCase(stripped)]).map(n => n.replace(/ /g, '_'));
+            const urls = [];
+            bases.forEach(b => ['.png', '.jpg', '_Icon.png', '_Render.png'].forEach(sfx => {
+                urls.push(`https://${host}/wiki/Special:FilePath/${encodeURIComponent(b)}${sfx}?width=300`);
+            }));
+            const results = await Promise.all(urls.map(u => probeImage(u, 6000)));
+            return results.filter(Boolean);
+        }
+
+        // Картинки уже выложенных товаров с таким названием
+        function localImages(name, cat) {
+            const n = name.trim().toLowerCase();
+            return allProductsCache
+                .filter(p => p.category === cat && String(p.title || '').trim().toLowerCase() === n && /^https?:\/\//i.test(p.img || ''))
+                .map(p => p.img);
+        }
+
+        // Общая библиотека картинок сайта (в Firebase)
+        function libKey(name, cat) {
+            const k = String(name).toLowerCase().replace(/[^a-z0-9а-яёіїєґ]+/gi, '_').replace(/^_+|_+$/g, '').slice(0, 60);
+            return k ? cat + '_' + k : '';
+        }
+
+        async function libraryImage(name, cat) {
+            if (!window.firebaseReady) return [];
+            const key = libKey(name, cat);
+            if (!key) return [];
+            try {
+                const { ref, get } = window.fb;
+                const snap = await Promise.race([
+                    get(ref(window.rtdb, 'item_images/' + key)),
+                    new Promise((_, rj) => setTimeout(() => rj(new Error('timeout')), 5000))
+                ]);
+                const v = snap.val();
+                return v && /^https?:\/\//i.test(v.url || '') ? [v.url] : [];
+            } catch (e) { return []; }
+        }
+
+        function saveLibraryImage(name, cat, url) {
+            if (!window.firebaseReady || !/^https?:\/\//i.test(url || '')) return;
+            const key = libKey(name, cat);
+            if (!key) return;
+            try {
+                const { ref, set } = window.fb;
+                set(ref(window.rtdb, 'item_images/' + key), { url, name, cat, by: (currentUser && currentUser.tgUsername) || '' });
+            } catch (e) {}
+        }
+
+        // Главный поиск: возвращает { main, list, down }
+        async function wikiFind(name, cat) {
+            const host = WIKI_HOST[cat];
+            const clean = String(name || '').trim().replace(/\s+/g, ' ');
+            const out = { main: null, list: [], down: false };
+            if (!host || !clean) return out;
+            const ck = cat + ':' + clean.toLowerCase();
+            if (imgCache[ck]) return imgCache[ck];
+
+            const found = [];
+            const add = u => { if (u && !found.includes(u)) found.push(u); };
+
+            // 1) наши товары и библиотека
+            localImages(clean, cat).forEach(add);
+            (await libraryImage(clean, cat)).forEach(add);
+
+            // 2) вики
+            const st = { ok: 0, down: false };
+            const words = clean.split(' ');
+            const stripped = clean.replace(/\b(mega neon|neon|mega|nfr|mfr|fr|fly|ride)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+            const cands = uniq([titleCase(clean), titleCase(stripped), clean, stripped]);
+
+            let pages = await pagesFor(host, cands, st);
+            if (!pages.length && !st.down) {
+                const qs = uniq([stripped || clean, clean, words.slice(-2).join(' ')]);
+                for (const q of qs) {
+                    const ts = await searchTitles(host, q, st);
+                    if (ts.length) {
+                        pages = await pagesFor(host, ts.slice(0, 4), st);
+                        if (pages.length) break;
+                    }
+                    if (st.down) break;
+                }
+            }
+
+            if (pages.length) {
+                const lc = clean.toLowerCase(), ls = stripped.toLowerCase();
+                const exact = pages.find(p => [lc, ls].includes(String(p.title).toLowerCase())) || pages[0];
+                const ordered = [exact, ...pages.filter(p => p !== exact)];
+                const th = ordered.find(p => p.thumbnail);
+                if (th) add(th.thumbnail.source);
+
+                const wordsLow = (stripped || clean).toLowerCase().split(' ').filter(Boolean);
+                let files = [];
+                ordered.forEach(p => (p.images || []).forEach(im => {
+                    if (im && im.title && !files.includes(im.title)) files.push(im.title);
+                }));
+                files = files.filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f) && !/logo|button|flag|badge|stub|robux|gamepass|avatar|infobox|wiki|site/i.test(f));
+                const score = f => wordsLow.filter(w => f.toLowerCase().includes(w)).length;
+                files.sort((a, b) => score(b) - score(a));
+                files = files.slice(0, 12);
+                if (files.length && !st.down) {
+                    const r = await wikiApi(host, { titles: files.join('|'), prop: 'imageinfo', iiprop: 'url', iiurlwidth: '240' }, st);
+                    const ps = r && r.query && r.query.pages ? r.query.pages : [];
+                    ps.map(p => (p.imageinfo && p.imageinfo[0]) ? (p.imageinfo[0].thumburl || p.imageinfo[0].url) : null).forEach(add);
+                }
+            }
+
+            // 3) прямые ссылки на файлы вики
+            if (!found.length) {
+                (await probeFilePaths(host, clean, stripped)).forEach(add);
+            }
+
+            const res = { main: found[0] || null, list: found, down: st.down && !found.length };
+            if (res.main) imgCache[ck] = res;
+            return res;
+        }
+
+        async function wikiImage(name, cat) {
+            const r = await wikiFind(name, cat);
+            return r.main;
+        }
+
+        function renderImgCandidates(list) {
+            const box = $('prod-img-candidates');
+            if (!box) return;
+            box._list = list || [];
+            if (!list || !list.length) {
+                box.innerHTML = '';
+                box.classList.add('hidden');
+                return;
+            }
+            box.classList.remove('hidden');
+            box.innerHTML = `<p class="w-full text-[10px] text-slate-400">Выберите подходящую картинку:</p>` +
+                list.slice(0, 10).map((u, i) => `
+                    <button type="button" onclick="pickProductImage(${i})" class="w-14 h-14 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden active:scale-95 flex items-center justify-center">
+                        <img src="${esc(u)}" loading="lazy" class="max-w-full max-h-full object-contain" onerror="this.style.display='none'">
+                    </button>`).join('');
+        }
+
+        function pickProductImage(i) {
+            const box = $('prod-img-candidates');
+            const u = box && box._list && box._list[i];
+            if (!u) return;
+            $('prod-img-url').value = u;
+            pickedUrl = u;
+            $('prod-img-preview').src = u;
+            $('prod-img-status').innerText = 'Картинка найдена — можно выбрать другую ниже';
         }
 
         function previewProductUrl() {
@@ -2010,28 +2154,45 @@
             if (/^https?:\/\//i.test(u)) $('prod-img-preview').src = u;
         }
 
+        function openImageSearch() {
+            const name = $('prod-title').value.trim();
+            const game = $('prod-category').value === 'mm2' ? 'murder mystery 2' : 'adopt me';
+            window.open('https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(game + ' ' + name), '_blank');
+        }
+
+        function scheduleAutoImage() {
+            const f = $('prod-img-url');
+            if (pickedUrl && f && f.value === pickedUrl) { f.value = ''; pickedUrl = ''; }
+            clearTimeout(autoImgTimer);
+            autoImgTimer = setTimeout(autoFindProductImage, 700);
+        }
+
         async function autoFindProductImage() {
             const name = $('prod-title').value.trim();
             const cat = $('prod-category').value;
             const st = $('prod-img-status');
             const pv = $('prod-img-preview');
+            const seq = ++findSeq;
+
             if (!name) {
-                st.innerText = 'Введите название (например Cat) — картинка подставится сама';
+                st.innerText = IMG_HINT;
                 pv.src = PLACEHOLDER;
+                renderImgCandidates([]);
                 return;
             }
             st.innerText = 'Ищу картинку…';
-            const url = await wikiImage(name, cat);
-            if (name !== $('prod-title').value.trim()) return; // название уже изменили
-            if (url) {
-                pv.src = url;
-                st.innerText = 'Картинка найдена';
-            } else {
-                pv.src = PLACEHOLDER;
-                st.innerText = wikiNetErr
-                    ? 'Нет связи с вики — вставьте ссылку на картинку или загрузите фото'
-                    : 'Картинка не найдена — загрузите фото';
-            }
+            const res = await wikiFind(name, cat);
+            if (seq !== findSeq) return; // название уже изменили
+
+            renderImgCandidates(res.list);
+            const manual = ($('prod-img-url').value || '').trim();
+            if (/^https?:\/\//i.test(manual)) pv.src = manual;
+            else if (res.main) pv.src = res.main;
+            else pv.src = nameImg(name);
+
+            if (res.main) st.innerText = 'Картинка найдена — можно выбрать другую ниже';
+            else if (res.down) st.innerText = 'Нет связи с вики — вставьте ссылку (кнопка поиска ниже), загрузите фото или оставьте карточку с названием';
+            else st.innerText = 'Картинка не найдена — вставьте ссылку, загрузите фото или оставьте карточку с названием';
         }
 
         async function handleSaveProduct(e) {
@@ -2060,10 +2221,13 @@
                 if (window.firebaseReady) {
                     const { ref, push } = window.fb;
                     await push(ref(window.rtdb, 'products'), { title, price, currency, discount, isTrending, category, type, img: imgData, sellerTg });
+                    if (/^https?:\/\//i.test(imgData)) saveLibraryImage(title, category, imgData);
                     alert(t('Товар добавлен в магазин!'));
                     $('product-form').reset();
+                    pickedUrl = '';
+                    renderImgCandidates([]);
                     $('prod-img-preview').src = PLACEHOLDER;
-                    $('prod-img-status').innerText = 'Введите название (например Cat) — картинка подставится сама';
+                    $('prod-img-status').innerText = IMG_HINT;
                     updateAdminTypeOptions();
                     switchTab(category);
                 }
@@ -2116,7 +2280,7 @@
                 items.forEach(item => {
                     html += `
                     <div class="flex-shrink-0 w-24 h-28 bg-slate-900 border-2 rounded-xl p-2 flex flex-col items-center justify-between shadow-md rarity-${esc(item.rarity || 'common')}">
-                        <img src="${esc(safeImg(item.img))}" onerror="this.onerror=null;this.src=PLACEHOLDER" class="w-16 h-14 object-contain filter drop-shadow">
+                        <img src="${esc(safeImg(item.img, item.name))}" alt="${esc(item.name)}" onerror="this.onerror=null;this.src=nameImg(this.alt)" class="w-16 h-14 object-contain filter drop-shadow">
                         <span class="text-[10px] font-bold text-slate-200 text-center line-clamp-1">${esc(item.name)}</span>
                     </div>`;
                 });
@@ -2130,7 +2294,7 @@
             const items = currentCaseItems[cat] && currentCaseItems[cat].length > 0 ? currentCaseItems[cat] : defaultCaseItems[cat];
             showcase.innerHTML = items.map(item => `
                     <div class="bg-slate-900/90 border rounded-xl p-2.5 flex flex-col items-center text-center rarity-${esc(item.rarity || 'common')}">
-                        <img src="${esc(safeImg(item.img))}" onerror="this.onerror=null;this.src=PLACEHOLDER" class="w-14 h-12 object-contain mb-1">
+                        <img src="${esc(safeImg(item.img, item.name))}" alt="${esc(item.name)}" onerror="this.onerror=null;this.src=nameImg(this.alt)" class="w-14 h-12 object-contain mb-1">
                         <span class="text-[11px] font-bold text-white line-clamp-1">${esc(item.name)}</span>
                         <span class="text-[10px] text-amber-400 font-semibold mt-0.5">Шанс: ${esc(item.chance || '10%')}</span>
                     </div>`).join('');
@@ -2321,7 +2485,7 @@
                                 <button onclick="${item.isShopFav ? `toggleFavoriteShop('${item.id}')` : `toggleFavInventoryItem('${item.id}',${!item.isFav})`}" class="absolute top-2 right-2 text-xs p-1 rounded-full bg-slate-900/60">
                                     <i class="fa-solid fa-star text-amber-400"></i>
                                 </button>
-                                <img src="${esc(safeImg(item.img))}" loading="lazy" onerror="this.onerror=null;this.src=PLACEHOLDER" class="w-20 h-16 object-contain my-2 filter drop-shadow">
+                                <img src="${esc(safeImg(item.img, item.name))}" alt="${esc(item.name)}" loading="lazy" onerror="this.onerror=null;this.src=nameImg(this.alt)" class="w-20 h-16 object-contain my-2 filter drop-shadow">
                                 <span class="font-bold text-xs text-white line-clamp-1">${esc(item.name)}</span>
                                 <span class="text-[9px] text-slate-400 mt-1 uppercase font-semibold">${item.isShopFav ? 'Из магазина' : esc(item.rarity || 'common')}</span>
                                 ${item.isShopFav ? `
