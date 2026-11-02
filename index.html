@@ -493,6 +493,10 @@
                                 <input type="number" id="prod-discount" min="0" max="99" value="0" placeholder="0" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-amber-400 text-sm">
                             </div>
                         </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase">Количество в наличии (шт.)</label>
+                            <input type="number" id="prod-qty" min="0" step="1" value="1" required placeholder="1" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sky-300 font-bold text-sm">
+                        </div>
                         <div class="flex items-center gap-2 pt-1">
                             <input type="checkbox" id="prod-trending" class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
                             <label for="prod-trending" class="text-xs font-bold text-amber-400 cursor-pointer">🔥 Закрепить как Трендовый товар</label>
@@ -908,6 +912,9 @@
             'Купить': ['Buy', 'Купити'],
             'Удалить': ['Delete', 'Видалити'],
             'Изменить цену': ['Change price', 'Змінити ціну'],
+            'Изменить количество': ['Change quantity', 'Змінити кількість'],
+            'Нет в наличии': ['Out of stock', 'Немає в наявності'],
+            'Количество в наличии (шт.)': ['Stock quantity (pcs)', 'Кількість в наявності (шт.)'],
             'Испытай удачу и выиграй питомца из Adopt Me!': ['Try your luck and win a pet from Adopt Me!', 'Спробуй удачу та виграй улюбленця з Adopt Me!'],
             'Испытай удачу и выиграй крутой нож или ган из MM2!': ['Try your luck and win a cool knife or gun from MM2!', 'Спробуй удачу та виграй крутий ніж або ган з MM2!'],
             'Цена открытия:': ['Opening price:', 'Ціна відкриття:'],
@@ -1059,6 +1066,9 @@
             'Новая цена': ['New price', 'Нова ціна'],
             'Введите корректную цену (число от 1)': ['Enter a valid price (a number from 1)', 'Введіть коректну ціну (число від 1)'],
             'Цена обновлена!': ['Price updated!', 'Ціну оновлено!'],
+            'Новое количество в наличии': ['New stock quantity', 'Нова кількість в наявності'],
+            'Введите корректное количество (0 или больше)': ['Enter a valid quantity (0 or more)', 'Введіть коректну кількість (0 або більше)'],
+            'Количество обновлено!': ['Quantity updated!', 'Кількість оновлено!'],
             'У вас нет оплаченных попыток!': ['You have no paid tries!', 'У вас немає оплачених спроб!'],
             'Напишите в Telegram админу: @TOPTTL для оплаты и получения спинов.': ['Message the admin on Telegram: @TOPTTL to pay and get spins.', 'Напишіть в Telegram адміну: @TOPTTL для оплати та отримання спінів.'],
             'ПОЗДРАВЛЯЕМ!': ['CONGRATULATIONS!', 'ВІТАЄМО!'],
@@ -1080,6 +1090,7 @@
             [/^(\d+) админов$/, (r, i) => i ? `${r[1]} admins` : `${r[1]} адмінів`],
             [/^(\d+) спинов$/, (r, i) => i ? `${r[1]} spins` : `${r[1]} спінів`],
             [/^(\d+) грн \/ ₴$/, (r, i) => i ? `${r[1]} UAH / ₴` : `${r[1]} грн / ₴`],
+            [/^В наличии: (\d+) шт\.$/, (r, i) => i ? `In stock: ${r[1]} pcs` : `В наявності: ${r[1]} шт.`],
             [/^Шанс: (.+)$/, (r, i) => i ? `Chance: ${r[1]}` : `Шанс: ${r[1]}`],
             [/^Предмет #(\d+)$/, (r, i) => i ? `Item #${r[1]}` : `Предмет #${r[1]}`],
             [/^Кейс: (.+) \| Выпало:$/, (r, i) => i ? `Case: ${r[1]} | Dropped:` : `Кейс: ${r[1]} | Випало:`],
@@ -1875,6 +1886,13 @@
             return adminKey(item.sellerTg || 'TOPTTL') === adminKey(currentUser.tgUsername);
         }
 
+        // Количество в наличии: null — не указано (старые товары), число — сколько штук
+        function getQty(item) {
+            if (item.qty === undefined || item.qty === null || item.qty === '') return null;
+            const n = Math.floor(Number(item.qty));
+            return isFinite(n) ? Math.max(0, n) : null;
+        }
+
         function renderProductsGrid() {
             const grid = $('items-grid');
             const emptyState = $('empty-shop-state');
@@ -1919,6 +1937,16 @@
                     const sym = curSym(item.currency);
                     const canEdit = canEditProduct(item);
                     const seller = String(item.sellerTg || 'TOPTTL').replace(/[^A-Za-z0-9_]/g, '');
+                    const qty = getQty(item);
+                    const soldOut = qty === 0;
+
+                    // Строка «в наличии» (для старых товаров без количества не показывается)
+                    let stockHtml = '';
+                    if (qty !== null) {
+                        stockHtml = soldOut
+                            ? `<div class="text-[10px] font-bold text-red-400"><i class="fa-solid fa-box-open me-1"></i>Нет в наличии</div>`
+                            : `<div class="text-[10px] font-semibold text-sky-400"><i class="fa-solid fa-boxes-stacked me-1"></i>В наличии: ${qty} шт.</div>`;
+                    }
 
                     let footer;
                     if (isAdmin) {
@@ -1926,12 +1954,20 @@
                         footer = canEdit
                             ? `<button onclick="handleDeleteProduct('${item.id}')" class="w-full bg-red-500/20 text-red-400 py-1 rounded text-[10px] font-bold">Удалить</button>`
                             : `<div class="text-[10px] text-slate-500 text-center">@${esc(seller)}</div>`;
+                    } else if (soldOut) {
+                        footer = `<button type="button" disabled class="w-full bg-slate-700 text-slate-400 font-bold py-1 rounded text-xs cursor-not-allowed">Нет в наличии</button>`;
                     } else {
                         footer = `<button onclick="handleBuyProduct('${item.id}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1 rounded text-xs shadow-md">Купить</button>`;
                     }
 
+                    const editBtns = canEdit ? `
+                        <span class="ml-auto flex gap-1">
+                            <button onclick="editProductStock('${item.id}')" title="Изменить количество" class="bg-sky-500/20 text-sky-300 border border-sky-500/30 w-6 h-6 rounded-lg text-[10px] flex items-center justify-center active:scale-90"><i class="fa-solid fa-boxes-stacked"></i></button>
+                            <button onclick="editProductPrice('${item.id}')" title="Изменить цену" class="bg-amber-500/20 text-amber-400 border border-amber-500/30 w-6 h-6 rounded-lg text-[10px] flex items-center justify-center active:scale-90"><i class="fa-solid fa-pencil"></i></button>
+                        </span>` : '';
+
                     html += `
-                        <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-md flex flex-col justify-between p-2.5 relative group">
+                        <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-md flex flex-col justify-between p-2.5 relative group ${soldOut ? 'opacity-70' : ''}">
                             <button onclick="toggleFavoriteShop('${item.id}')" class="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-slate-900/80 text-xs transition active:scale-90 hover:scale-110">
                                 <i class="fa-solid fa-heart ${isFav ? 'text-red-500' : 'text-slate-500'}"></i>
                             </button>
@@ -1953,8 +1989,9 @@
                                     <div class="flex items-center gap-1.5 my-0.5">
                                         <span class="text-xs sm:text-sm font-extrabold text-emerald-400">${finalPrice} ${sym}</span>
                                         ${discount > 0 ? `<span class="text-[10px] text-slate-500 line-through">${item.price} ${sym}</span>` : ''}
-                                        ${canEdit ? `<button onclick="editProductPrice('${item.id}')" title="Изменить цену" class="ml-auto bg-amber-500/20 text-amber-400 border border-amber-500/30 w-6 h-6 rounded-lg text-[10px] flex items-center justify-center active:scale-90"><i class="fa-solid fa-pencil"></i></button>` : ''}
+                                        ${editBtns}
                                     </div>
+                                    ${stockHtml}
                                 </div>
                                 <div class="mt-1 pt-1 border-t border-slate-700/40">
                                     ${footer}
@@ -1980,6 +2017,20 @@
             const { ref, set } = window.fb;
             await set(ref(window.rtdb, `products/${id}/price`), price);
             alert(t('Цена обновлена!'));
+        }
+
+        // Изменить количество в наличии (свой товар или любой — у создателя)
+        async function editProductStock(id) {
+            const item = allProductsCache.find(p => p.id === id);
+            if (!item || !canEditProduct(item)) { alert(t('Нет прав для этого действия.')); return; }
+            const cur = getQty(item);
+            const v = prompt(t('Новое количество в наличии'), cur === null ? 1 : cur);
+            if (v === null) return;
+            const q = Math.floor(Number(String(v).replace(',', '.')));
+            if (!isFinite(q) || q < 0) { alert(t('Введите корректное количество (0 или больше)')); return; }
+            const { ref, set } = window.fb;
+            await set(ref(window.rtdb, `products/${id}/qty`), q);
+            alert(t('Количество обновлено!'));
         }
 
         /* =====================================================
@@ -2291,6 +2342,8 @@
                 const price = Number($('prod-price').value);
                 const currency = $('prod-currency').value === 'RUB' ? 'RUB' : 'UAH';
                 const discount = Number($('prod-discount').value) || 0;
+                const qtyRaw = Number($('prod-qty').value);
+                const qty = isFinite(qtyRaw) ? Math.max(0, Math.floor(qtyRaw)) : 1;
                 const isTrending = $('prod-trending').checked;
                 const category = $('prod-category').value;
                 const type = $('prod-type').value;
@@ -2306,7 +2359,7 @@
 
                 if (window.firebaseReady) {
                     const { ref, push } = window.fb;
-                    await push(ref(window.rtdb, 'products'), { title, price, currency, discount, isTrending, category, type, img: imgData, sellerTg });
+                    await push(ref(window.rtdb, 'products'), { title, price, currency, discount, qty, isTrending, category, type, img: imgData, sellerTg });
                     if (isHttp(imgData)) saveLibraryImage(title, category, imgData);
                     alert(t('Товар добавлен в магазин!'));
                     $('product-form').reset();
@@ -3133,6 +3186,7 @@
         function handleBuyProduct(id) {
             const item = allProductsCache.find(p => p.id === id);
             if (!item) return;
+            if (getQty(item) === 0) return; // нет в наличии
             const tg = String(item.sellerTg || 'TOPTTL').replace(/[^A-Za-z0-9_]/g, '') || 'TOPTTL';
             $('modal-product-name').innerText = item.title;
             const link = $('modal-tg-link');
